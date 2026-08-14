@@ -335,10 +335,18 @@ def fetch(url: str = URL, timeout: int = 20) -> str:
     ``apparent_encoding`` zu raten ist unnoetig und ging bei kurzen Seiten
     schon schief — Umlaute in "Luftqualitaet" landeten als Mojibake im JSON.
     """
-    try:
-        import requests
-    except ImportError:
-        sys.exit("Fehlende Abhaengigkeit: pip install -r requirements.txt")
+    # Der Filter muss UM den Import liegen, nicht dahinter: urllib3 gibt seine
+    # LibreSSL-Meldung beim Import ab, den requests ausloest. Das System-Python
+    # von macOS ist gegen LibreSSL gebaut, deshalb erscheint sie dort bei jedem
+    # Lauf und wuerde das Cron-Log zumuellen. Eng begrenzt auf diese eine
+    # Anweisung; ein Python von Homebrew braucht das gar nicht.
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        try:
+            import requests
+        except ImportError:
+            sys.exit("Fehlende Abhaengigkeit: pip install -r requirements.txt")
 
     headers = {
         "User-Agent": "ozon-vorarlberg/2.0 (privat, stuendlich)",

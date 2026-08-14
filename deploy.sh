@@ -34,6 +34,7 @@ KEY="${OZON_DEPLOY_KEY:-$HOME/.ssh/ozon_deploy}"
 PY="${OZON_PYTHON:-/usr/bin/python3}"
 LOG_PREFIX="[$(date '+%Y-%m-%d %H:%M:%S')]"
 
+
 log() { echo "$LOG_PREFIX $*"; }
 fail() { echo "$LOG_PREFIX FEHLER: $*" >&2; exit 1; }
 
@@ -63,10 +64,23 @@ log "_site gebaut (${SIZE} KB)"
 REMOTE=$(git remote get-url origin 2>/dev/null || true)
 [ -n "$REMOTE" ] || fail "kein origin-Remote gesetzt — setup_mini.sh laufen lassen"
 
-if [ ! -f "$KEY" ]; then
-    fail "Deploy-Key $KEY fehlt — setup_mini.sh laufen lassen"
-fi
-export GIT_SSH_COMMAND="ssh -i $KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+# GIT_SSH_COMMAND wirkt nur auf SSH-Remotes. Bei einem HTTPS-Remote wuerde der
+# Key stillschweigend ignoriert und git griffe zum credential-Helper — der im
+# launchd-Kontext oft keinen Schluesselbund hat und dann haengt. Also
+# unterscheiden und im Zweifel warnen.
+case "$REMOTE" in
+    git@*|ssh://*)
+        [ -f "$KEY" ] || fail "Deploy-Key $KEY fehlt — setup_mini.sh laufen lassen"
+        export GIT_SSH_COMMAND="ssh -i $KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+        log "Push per SSH-Deploy-Key"
+        ;;
+    *)
+        # Interaktiv funktioniert das; unter launchd fehlt haeufig der
+        # Schluesselbund und der Push haengt still. Keine Umgebungs-Erkennung
+        # hier — XPC_SERVICE_NAME ist auch in normalen Terminals gesetzt.
+        log "Push per HTTPS (credential-Helper) — fuer den Cron-Job auf SSH umstellen"
+        ;;
+esac
 
 # In einem temporaeren Klon arbeiten, damit der Arbeitsbaum unberuehrt bleibt.
 TMP=$(mktemp -d)

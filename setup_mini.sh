@@ -114,7 +114,17 @@ if ! git remote get-url origin >/dev/null 2>&1; then
 else
     ok "origin: $(git remote get-url origin)"
 fi
-REPO_SLUG=$(git remote get-url origin | sed -E 's#.*[:/]([^/]+/[^/]+)(\.git)?$#\1#; s#\.git$##')
+
+# Remote auf SSH normalisieren. launchd-Jobs haben oft keinen Zugriff auf den
+# Schluesselbund; ueber HTTPS haengt der Push dann still. Der Deploy-Key ist
+# der verlaessliche Weg, und der wirkt nur bei SSH-Remotes.
+CURRENT=$(git remote get-url origin)
+REPO_SLUG=$(echo "$CURRENT" | sed -E 's#.*[:/]([^/]+/[^/]+)(\.git)?$#\1#; s#\.git$##')
+case "$CURRENT" in
+    git@*|ssh://*) ok "Remote ist SSH" ;;
+    *) git remote set-url origin "git@github.com:$REPO_SLUG.git"
+       ok "Remote von HTTPS auf SSH umgestellt" ;;
+esac
 
 # ----------------------------------------------------------- 4) Deploy-Key --
 step "4. SSH-Deploy-Key"
