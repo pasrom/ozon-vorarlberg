@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ozon Vorarlberg · Trainingsampel</title>
+<style>
+/* ---------------------------------------------------------------------------
+   Farbrollen. Hell auf :root, Dunkel doppelt deklariert: einmal fuer die
+   OS-Einstellung, einmal fuer den Theme-Umschalter, damit der Umschalter in
+   beide Richtungen gewinnt.
+
+   Serienfarben = kategoriale Slots 1..4 (blau, orange, aqua, gelb). Feste
+   Zuordnung pro Station ueber das Feld "slot" aus dem Scraper — Farbe folgt
+   der Station, nie ihrem aktuellen Rang.
+
+   Status-Farben (good/warning/serious/critical) sind reserviert und werden
+   NIE als Serienfarbe benutzt. Sie treten immer mit Glyph + Wort auf, nie als
+   Farbe allein.
+--------------------------------------------------------------------------- */
+:root{
+  color-scheme: light;
+  --surface-1:#fcfcfb; --plane:#f9f9f7;
+  --ink-1:#0b0b0b; --ink-2:#52514e; --ink-muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --hairline:rgba(11,11,11,.10);
+  --series-1:#2a78d6; --series-2:#eb6834; --series-3:#1baf7a; --series-4:#eda100;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --wash:rgba(11,11,11,.04);
+  --shadow:0 1px 2px rgba(11,11,11,.05), 0 8px 24px -12px rgba(11,11,11,.12);
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --surface-1:#1a1a19; --plane:#0d0d0d;
+    --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --hairline:rgba(255,255,255,.10);
+    --series-1:#3987e5; --series-2:#d95926; --series-3:#199e70; --series-4:#c98500;
+    --wash:rgba(255,255,255,.05);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface-1:#1a1a19; --plane:#0d0d0d;
+  --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --hairline:rgba(255,255,255,.10);
+  --series-1:#3987e5; --series-2:#d95926; --series-3:#199e70; --series-4:#c98500;
+  --wash:rgba(255,255,255,.05);
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+
+*{box-sizing:border-box}
+/* Muss !important sein: .legend und .hero setzen display:flex und wuerden das
+   hidden-Attribut sonst ueberstimmen. */
+[hidden]{display:none!important}
+html,body{margin:0}
+body{
+  background:var(--plane); color:var(--ink-1);
+  font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding:28px 20px 56px;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px;margin:0 auto}
+
+/* --- Kopf ---------------------------------------------------------------- */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px;margin-bottom:4px}
+h1{font-size:23px;line-height:1.2;margin:0;letter-spacing:-.01em;font-weight:650}
+.top .spacer{flex:1 1 auto}
+.stamp{color:var(--ink-2);font-size:13px;margin:2px 0 22px}
+.stamp b{color:var(--ink-1);font-weight:600}
+.stale{color:var(--critical);font-weight:600}
+
+/* --- Filterzeile: eine Reihe, ueber allem was sie einschraenkt ----------- */
+.controls{
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+  padding-bottom:18px;margin-bottom:22px;border-bottom:1px solid var(--hairline);
+}
+.controls .group{display:flex;gap:2px;background:var(--wash);border-radius:9px;padding:2px}
+.controls .lab{font-size:12px;color:var(--ink-muted);margin-right:2px;align-self:center}
+button{font:inherit;color:var(--ink-2);background:none;border:0;cursor:pointer}
+.seg{font-size:13px;padding:5px 11px;border-radius:7px;line-height:1.3}
+.seg[aria-pressed="true"]{background:var(--surface-1);color:var(--ink-1);
+  font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.seg:hover:not([aria-pressed="true"]){color:var(--ink-1)}
+.ghost{font-size:13px;padding:5px 11px;border-radius:7px;border:1px solid var(--hairline)}
+.ghost[aria-pressed="true"]{background:var(--ink-1);color:var(--surface-1);
+  border-color:var(--ink-1);font-weight:600}
+:focus-visible{outline:2px solid var(--series-1);outline-offset:2px;border-radius:4px}
+
+/* --- Karten ------------------------------------------------------------- */
+.card{
+  background:var(--surface-1);border:1px solid var(--hairline);
+  border-radius:14px;box-shadow:var(--shadow);
+}
+.card > h2{
+  font-size:14px;font-weight:650;margin:0;padding:15px 18px 0;
+  letter-spacing:-.005em;
+}
+.card > .note{font-size:12.5px;color:var(--ink-muted);padding:3px 18px 0;margin:0}
+
+/* Banner */
+.banner{
+  display:none;gap:10px;align-items:flex-start;
+  padding:12px 16px;border-radius:12px;margin-bottom:20px;font-size:13.5px;
+  border:1px solid var(--hairline);background:var(--surface-1);
+}
+.banner.show{display:flex}
+.banner .g{flex:0 0 auto;font-weight:700;font-size:15px}
+.banner code{background:var(--wash);padding:1px 5px;border-radius:4px;font-size:12.5px}
+
+/* Hero */
+.hero{padding:20px 22px;margin-bottom:20px;display:flex;flex-wrap:wrap;
+      gap:22px 34px;align-items:center}
+.hero .verdict{flex:1 1 260px;min-width:0}
+.hero .verdict .k{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--ink-muted);font-weight:600;margin-bottom:7px}
+.hero .word{font-size:34px;font-weight:680;letter-spacing:-.02em;line-height:1.05;
+  display:flex;align-items:center;gap:11px}
+.hero .advice{color:var(--ink-2);font-size:14px;margin-top:7px;max-width:52ch}
+.hero .pick{
+  flex:0 0 auto;border-left:1px solid var(--hairline);padding-left:26px;
+}
+.hero .pick .k{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--ink-muted);font-weight:600}
+.hero .pick .v{font-size:19px;font-weight:640;margin-top:4px}
+.hero .pick .s{font-size:13px;color:var(--ink-2);margin-top:2px}
+@media (max-width:640px){
+  .hero .pick{border-left:0;padding-left:0;border-top:1px solid var(--hairline);
+    padding-top:16px;flex:1 1 100%}
+}
+
+/* Status-Glyphen: Farbe trägt nie allein die Bedeutung. */
+.glyph{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+  width:1.05em;height:1.05em;font-size:.72em;font-weight:800;border-radius:50%;
+  border:2px solid currentColor;line-height:1}
+.s-good{color:var(--good)} .s-warning{color:var(--warning)}
+.s-serious{color:var(--serious)} .s-critical{color:var(--critical)}
+.s-unknown{color:var(--ink-muted)}
+
+/* Stationskacheln */
+.tiles{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));
+       margin-bottom:20px}
+.tile{padding:15px 17px 13px;display:flex;flex-direction:column;gap:0}
+.tile .hd{display:flex;align-items:baseline;gap:8px}
+.tile .key{flex:0 0 auto;width:11px;height:3px;border-radius:2px;align-self:center}
+.tile .nm{font-weight:640;font-size:14.5px;letter-spacing:-.005em}
+.tile .alt{font-size:11.5px;color:var(--ink-muted);margin-left:auto;white-space:nowrap}
+.tile .val{display:flex;align-items:flex-end;gap:8px;margin-top:9px}
+.tile .num{font-size:40px;font-weight:660;line-height:.92;letter-spacing:-.025em}
+.tile .unit{font-size:12px;color:var(--ink-muted);padding-bottom:5px}
+.tile .tr{font-size:12.5px;color:var(--ink-2);padding-bottom:5px;white-space:nowrap}
+.tile .spark{margin:11px 0 3px;height:36px}
+.tile .chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;
+  font-weight:600;margin-top:4px}
+.tile .chip .t{color:var(--ink-1)}
+.tile .meta{font-size:12px;color:var(--ink-muted);margin-top:7px;
+  padding-top:9px;border-top:1px solid var(--hairline);
+  display:flex;justify-content:space-between;gap:10px}
+.tile .meta b{color:var(--ink-2);font-weight:600;font-variant-numeric:tabular-nums}
+
+/* Diagramme */
+.chartcard{margin-bottom:20px;overflow:hidden}
+.plotwrap{padding:6px 18px 14px;position:relative}
+.plotwrap.loading{opacity:.55}
+.plotwrap > svg{display:block;width:100%;overflow:visible}
+.spark svg{display:block;width:100%}
+/* Legenden-Keys sind kleine Inline-SVGs und duerfen NICHT auf 100 % wachsen —
+   sonst schieben sie sich ueber ihr eigenes Label. */
+.legend svg,.tip svg{display:block;flex:0 0 auto;width:20px;height:8px}
+svg text{fill:var(--ink-muted);font-size:11px}
+svg .tick{font-variant-numeric:tabular-nums}
+.gridline{stroke:var(--grid);stroke-width:1;shape-rendering:crispEdges}
+.baseline{stroke:var(--axis);stroke-width:1;shape-rendering:crispEdges}
+.thr{stroke:var(--ink-muted);stroke-width:1;stroke-dasharray:4 4;opacity:.75}
+.thrlab{fill:var(--ink-muted);font-size:10.5px;font-weight:600}
+.line{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.endlab{font-size:11.5px;font-weight:640;fill:var(--ink-2)}
+.cross{stroke:var(--ink-1);stroke-width:1;opacity:.4;shape-rendering:crispEdges}
+.focusdot{stroke:var(--surface-1);stroke-width:2}
+
+/* Legende: Linien-Keys, weil die Marke eine Linie ist */
+.legend{display:flex;flex-wrap:wrap;gap:7px 18px;padding:0 18px 15px;font-size:12.5px}
+.metricrow{display:flex;padding:11px 18px 4px}
+.legend button span:not(.k){white-space:nowrap}
+.legend button{display:flex;align-items:center;gap:7px;color:var(--ink-2);
+  padding:2px 0;border-radius:4px}
+.legend button[aria-pressed="false"]{opacity:.42}
+.legend .k{width:14px;height:3px;border-radius:2px;flex:0 0 auto}
+.legend button:hover{color:var(--ink-1)}
+
+/* Tooltip */
+.tip{position:absolute;pointer-events:none;z-index:5;min-width:172px;
+  background:var(--surface-1);border:1px solid var(--hairline);border-radius:10px;
+  box-shadow:var(--shadow);padding:9px 11px;font-size:12.5px;opacity:0;
+  transition:opacity .1s}
+.tip.on{opacity:1}
+.tip .th{font-size:11.5px;color:var(--ink-muted);font-weight:600;
+  margin-bottom:6px;font-variant-numeric:tabular-nums}
+.tip .r{display:flex;align-items:center;gap:8px;padding:2px 0}
+.tip .r .k{width:12px;height:3px;border-radius:2px;flex:0 0 auto}
+.tip .r .v{font-weight:680;color:var(--ink-1);font-variant-numeric:tabular-nums;
+  min-width:2.6em;text-align:right}
+.tip .r .n{color:var(--ink-2);font-size:12px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Leerstand */
+.empty{padding:34px 22px 38px;text-align:center;color:var(--ink-2)}
+.empty .big{font-size:15px;font-weight:640;color:var(--ink-1);margin-bottom:7px}
+.empty code{background:var(--wash);padding:2px 6px;border-radius:5px;font-size:12.5px}
+.bar{height:5px;background:var(--wash);border-radius:3px;overflow:hidden;
+  max-width:280px;margin:14px auto 0}
+.bar i{display:block;height:100%;background:var(--series-1);border-radius:3px}
+
+/* Tabellen */
+.tablecard{margin-bottom:20px}
+.scroll{overflow-x:auto;padding:0 18px 16px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+caption{text-align:left;color:var(--ink-muted);font-size:12px;padding:0 0 9px}
+th,td{padding:7px 11px 7px 0;text-align:right;white-space:nowrap;
+  border-bottom:1px solid var(--hairline)}
+th:first-child,td:first-child{text-align:left}
+thead th{color:var(--ink-muted);font-weight:600;font-size:11.5px;
+  text-transform:uppercase;letter-spacing:.045em}
+tbody td{font-variant-numeric:tabular-nums;color:var(--ink-1)}
+tbody th{font-weight:600;text-align:left;color:var(--ink-1)}
+.hist{max-height:340px;overflow-y:auto}
+.hist thead th{position:sticky;top:0;background:var(--surface-1);z-index:1}
+
+/* Referenzwerte */
+.ref{padding:15px 18px 17px;font-size:13px;color:var(--ink-2);margin-bottom:20px}
+.ref dl{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;margin:9px 0 0}
+.ref dt{font-weight:640;color:var(--ink-1);font-variant-numeric:tabular-nums;
+  white-space:nowrap}
+.ref dd{margin:0}
+.ref .scalerow{display:flex;align-items:center;gap:8px}
+footer{color:var(--ink-muted);font-size:12px;line-height:1.6}
+footer a{color:var(--ink-2)}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);
+    white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div>
+      <h1>Ozon Vorarlberg · Trainingsampel</h1>
+      <p class="stamp" id="stamp">Daten werden geladen…</p>
+    </div>
+    <div class="spacer"></div>
+    <div class="group" role="group" aria-label="Farbschema">
+      <button class="seg" data-theme-set="light" aria-pressed="false">Hell</button>
+      <button class="seg" data-theme-set="dark" aria-pressed="false">Dunkel</button>
+      <button class="seg" data-theme-set="system" aria-pressed="true">System</button>
+    </div>
+  </div>
+
+  <div class="banner" id="banner">
+    <span class="g" id="bannerGlyph" aria-hidden="true">!</span>
+    <div id="bannerText"></div>
+  </div>
+
+  <!-- Eine Filterzeile, oberhalb von allem was sie einschraenkt. -->
+  <div class="controls">
+    <span class="lab">Zeitraum</span>
+    <div class="group" role="group" aria-label="Zeitraum">
+      <button class="seg" data-range="24" aria-pressed="true">24 h</button>
+      <button class="seg" data-range="48" aria-pressed="false">48 h</button>
+      <button class="seg" data-range="72" aria-pressed="false">72 h</button>
+    </div>
+    <span class="lab" style="margin-left:10px">Ansicht</span>
+    <button class="ghost" id="tableToggle" aria-pressed="false">Tabelle</button>
+    <button class="ghost" id="patternToggle" aria-pressed="false"
+            title="Linien zusätzlich über Strichmuster unterscheiden">Muster</button>
+  </div>
+
+  <section class="card hero" id="hero" aria-labelledby="heroH">
+    <h2 id="heroH" class="vh">Gesamtbewertung</h2>
+    <div class="verdict">
+      <div class="k" id="heroKey">Lage jetzt</div>
+      <div class="word" id="heroWord">–</div>
+      <p class="advice" id="heroAdvice"></p>
+    </div>
+    <div class="pick">
+      <div class="k">Sauberste Station jetzt</div>
+      <div class="v" id="heroPick">–</div>
+      <div class="s" id="heroPickSub"></div>
+    </div>
+    <div class="pick">
+      <div class="k">Bestes Zeitfenster</div>
+      <div class="v" id="heroWindow">–</div>
+      <div class="s" id="heroWindowSub"></div>
+    </div>
+    <div class="pick" id="heroCtxWrap" hidden>
+      <div class="k">Heute im Langzeitvergleich</div>
+      <div class="v" id="heroCtx">–</div>
+      <div class="s" id="heroCtxSub"></div>
+    </div>
+  </section>
+
+  <div class="tiles" id="tiles"></div>
+
+  <section class="card chartcard" aria-labelledby="chH">
+    <h2 id="chH">Verlauf · aktueller 1-h-Mittelwert</h2>
+    <p class="note" id="chNote"></p>
+    <div class="plotwrap" id="plotwrap">
+      <svg id="chart" role="img" aria-labelledby="chH chDesc"></svg>
+      <p id="chDesc" class="vh"></p>
+      <div class="tip" id="tip" role="status" aria-live="off"></div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="empty" id="chEmpty" hidden></div>
+  </section>
+
+  <section class="card chartcard" id="profCard" aria-labelledby="prH" hidden>
+    <h2 id="prH">Tagesgang · Median je Stunde</h2>
+    <p class="note" id="prNote"></p>
+    <div class="plotwrap">
+      <svg id="prof" role="img" aria-labelledby="prH prDesc"></svg>
+      <p id="prDesc" class="vh"></p>
+    </div>
+    <div class="legend" id="prLegend"></div>
+  </section>
+
+  <section class="card chartcard" id="yearCard" aria-labelledby="yrH" hidden>
+    <h2 id="yrH">Jahresreihe</h2>
+    <p class="note" id="yrNote"></p>
+    <div class="metricrow" role="group" aria-label="Kennzahl">
+      <div class="group">
+        <button class="seg" data-metric="peak_season_mean" aria-pressed="true">
+          Peak-Season-Mittel</button>
+        <button class="seg" data-metric="days_8h_over_120" aria-pressed="false">
+          Tage über EU-Zielwert</button>
+        <button class="seg" data-metric="max_1h" aria-pressed="false">
+          Höchster 1-h-Wert</button>
+      </div>
+    </div>
+    <div class="plotwrap">
+      <svg id="year" role="img" aria-labelledby="yrH yrDesc"></svg>
+      <p id="yrDesc" class="vh"></p>
+      <div class="tip" id="yrTip" role="status" aria-live="off"></div>
+    </div>
+    <div class="legend" id="yrLegend"></div>
+  </section>
+
+  <section class="card tablecard" id="tableCard" hidden aria-labelledby="tbH">
+    <h2 id="tbH">Tabellenansicht</h2>
+    <p class="note">Dieselben Werte wie in den Diagrammen, ohne Farbcodierung.</p>
+    <div class="scroll"><table id="tblNow"></table></div>
+    <div class="scroll hist"><table id="tblHist"></table></div>
+  </section>
+
+  <section class="card ref" aria-labelledby="refH">
+    <h2 id="refH" style="padding:0 0 2px">Wonach hier bewertet wird</h2>
+    <p style="margin:8px 0 0">
+      Zwei getrennte Achsen, absichtlich nicht vermischt. Die
+      <b style="color:var(--ink-1)">Trainings-Ampel</b> läuft auf dem
+      <b style="color:var(--ink-1)">aktuellen 1-h-Wert</b> — das ist, was du
+      gerade atmest. Die <b style="color:var(--ink-1)">Tagesbewertung</b> läuft
+      auf dem <b style="color:var(--ink-1)">Tagesmaximum des gleitenden
+      8-h-Mittels</b> und ist der gesundheitliche Kontext des Tages.
+    </p>
+    <dl id="scaleList"></dl>
+    <p style="margin:14px 0 0;font-size:12.5px;color:var(--ink-muted)">
+      Die 100er- und 120er-Marke der Trainings-Skala sind von den
+      8-h-Richtwerten geliehen und damit eine pragmatische Skala, kein
+      Rechtswert. 180 µg/m³ ist die echte österreichische
+      Informationsschwelle (1-h-Mittel).
+    </p>
+    <dl id="thrList" style="margin-top:14px"></dl>
+  </section>
+
+  <footer>
+    <p style="margin:0 0 10px;padding:11px 14px;border-radius:10px;
+              background:var(--wash);color:var(--ink-2);font-size:12.5px">
+      <b style="color:var(--ink-1)">Privates Projekt, keine amtliche Warnung.</b>
+      Diese Seite wird von einer Privatperson betrieben und ist keine
+      Veröffentlichung des Landes Vorarlberg. Die Trainings-Ampel ist eine
+      eigene, pragmatische Einordnung und kein Rechtswert. Bei
+      Grenzwertüberschreitungen und im Zweifelsfall gilt allein
+      <a href="https://www.vorarlberg-luft.at/tab1O3.htm" target="_blank"
+      rel="noopener">vorarlberg-luft.at</a>. Wer Atemwegsbeschwerden hat, fragt
+      besser Ärztin oder Arzt als ein Dashboard.
+    </p>
+    Quelle: <a href="https://www.vorarlberg-luft.at/tab1O3.htm" target="_blank"
+    rel="noopener">vorarlberg-luft.at</a> (Land Vorarlberg, Umweltinstitut) ·
+    alle Werte in µg/m³ · Zeiten in lokaler Zeit (Europe/Vienna).<br>
+    Die Quelle veröffentlicht keine Zahlen-Historie — der Verlauf hier wird vom
+    Scraper selbst mitgeschrieben und beginnt mit dem ersten Log-Eintrag.
+    Höhenangaben sind Näherungswerte und stammen nicht aus der Quelle.<br>
+    Langzeitdaten: EEA Air Quality e-Reporting (E2a/E1a/AIRBASE).
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ==========================================================================
+   Zustand
+   ========================================================================== */
+const SLOT_VAR = {1:"--series-1", 2:"--series-2", 3:"--series-3", 4:"--series-4"};
+const DASH     = {1:"", 2:"7 4", 3:"2 3", 4:"11 4 2 4"};   // nur wenn "Muster" an
+const GLYPH    = {good:"✓", warning:"!", serious:"!", critical:"✕", unknown:"?"};
+const STATUS_DE= {good:"frei", warning:"erhöht", serious:"deutlich erhöht",
+                  critical:"Informationsschwelle", unknown:"keine Daten"};
+
+const state = {
+  data: null,
+  rangeH: 24,
+  hidden: new Set(),      // ausgeblendete Stations-IDs (Legende)
+  pattern: false,
+  table: false,
+  metric: "peak_season_mean",
+  focus: null,            // Index im gefilterten Verlauf
+};
+
+/* --------------------------------------------------------------- Helfer --- */
+const $ = (id) => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+
+function el(tag, attrs, ...kids){
+  const n = document.createElement(tag);
+  for (const k in (attrs||{})){
+    if (k === "class") n.className = attrs[k];
+    else if (k === "text") n.textContent = attrs[k];   // untrusted -> textContent
+    else if (k === "style") n.setAttribute("style", attrs[k]);
+    else if (attrs[k] !== null && attrs[k] !== undefined) n.setAttribute(k, attrs[k]);
+  }
+  for (const c of kids) if (c) n.appendChild(typeof c === "string"
+    ? document.createTextNode(c) : c);
+  return n;
+}
+function svg(tag, attrs){
+  const n = document.createElementNS(NS, tag);
+  for (const k in (attrs||{})){
+    if (k === "text") n.textContent = attrs[k];
+    else if (attrs[k] !== null && attrs[k] !== undefined) n.setAttribute(k, attrs[k]);
+  }
+  return n;
+}
+const colorOf  = (slot) => `var(${SLOT_VAR[slot] || "--series-1"})`;
+const pad2     = (n) => String(n).padStart(2,"0");
+const fmt      = (v) => (v === null || v === undefined) ? "–" : String(v);
+const parseTs  = (s) => { const d = new Date(s); return isNaN(d) ? null : d; };
+const hhmm     = (d) => String(d.getHours()).padStart(2,"0") + ":" +
+                        String(d.getMinutes()).padStart(2,"0");
+const dayMon   = (d) => String(d.getDate()).padStart(2,"0") + "." +
+                        String(d.getMonth()+1).padStart(2,"0") + ".";
+
+function statusChip(status, word){
+  return el("span", {class:"chip s-" + status},
+    el("span", {class:"glyph", "aria-hidden":"true", text: GLYPH[status] || "?"}),
+    el("span", {class:"t", text: word}));
+}
+
+/* ==========================================================================
+   Laden
+   ========================================================================== */
+async function load(initial){
+  const wrap = $("plotwrap");
+  if (!initial) wrap.classList.add("loading");        // Rahmen halten, kein Skeleton
+  try{
+    const r = await fetch("data.json", {cache:"no-store"});
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    if (!d || !Array.isArray(d.stations)) throw new Error("unerwartetes Format");
+    state.data = d;
+    banner(d);
+    render();
+  }catch(err){
+    if (!state.data) noData(err);
+  }finally{
+    wrap.classList.remove("loading");
+  }
+}
+
+function banner(d){
+  const b = $("banner"), t = $("bannerText"), g = $("bannerGlyph");
+  t.textContent = "";
+  if (d.demo){
+    g.textContent = "!"; g.className = "g s-warning";
+    t.appendChild(el("b", {text:"Demo-Daten."}));
+    t.appendChild(document.createTextNode(
+      " Diese Werte sind synthetisch und zeigen nur, wie das Dashboard aussieht. " +
+      "Für echte Werte: "));
+    t.appendChild(el("code", {text:"python3 ozon_vorarlberg.py --log --out data.json"}));
+    b.classList.add("show");
+    return;
+  }
+  const st = parseTs(d.source_time);
+  const ageH = st ? (Date.now() - st.getTime()) / 36e5 : null;
+  if (ageH !== null && ageH > 3){
+    g.textContent = "!"; g.className = "g s-serious";
+    t.appendChild(el("b", {text:"Daten sind alt."}));
+    t.appendChild(document.createTextNode(
+      ` Der Stand der Quelle liegt ${Math.round(ageH)} Stunden zurück. ` +
+      "Läuft der Logger noch?"));
+    b.classList.add("show");
+  } else {
+    b.classList.remove("show");
+  }
+}
+
+function noData(err){
+  $("stamp").textContent = "data.json nicht erreichbar.";
+  const b = $("banner"), t = $("bannerText");
+  $("bannerGlyph").textContent = "!";
+  $("bannerGlyph").className = "g s-serious";
+  t.textContent = "";
+  t.appendChild(el("b", {text:"Keine Daten geladen."}));
+  t.appendChild(document.createTextNode(
+    ` (${err.message}) Das Dashboard liest data.json aus demselben Ordner. ` +
+    "Per Doppelklick geöffnet blockiert der Browser das — starte einen " +
+    "Mini-Server: "));
+  t.appendChild(el("code", {text:"python3 -m http.server 8000"}));
+  t.appendChild(document.createTextNode(" und öffne http://localhost:8000/ozon_dashboard.html"));
+  b.classList.add("show");
+  $("chart").setAttribute("height", "0");
+  $("legend").hidden = true;
+  showEmpty("Kein Verlauf geladen.",
+    "Sobald data.json erreichbar ist, erscheint hier die Kurve.", 0);
+}
+
+/* ==========================================================================
+   Render
+   ========================================================================== */
+function render(){
+  const d = state.data;
+  renderStamp(d);
+  renderHero(d);
+  renderTiles(d);
+  const win = sliceHistory(d);
+  renderChart(win);
+  renderLegend(d, win);
+  renderProfile(d);
+  renderYearly(d);
+  renderTables(d, win);
+  renderRef(d);
+}
+
+/* Archiv-Station nach ID. Fehlt archive.json, liefert das ueberall null und
+   alle Archiv-Abschnitte bleiben ausgeblendet. */
+function arcStations(d){
+  return ((d.archive && d.archive.available) ? d.archive.stations : []) || [];
+}
+function arcById(d, id){
+  return arcStations(d).find(s => s.id === id) || null;
+}
+
+const METRICS = {
+  peak_season_mean: {
+    label: "Peak-Season-Mittel", unit: "µg/m³",
+    ref: [[60, "WHO-Langfristziel 60"]],
+    note: "Mittel der 8-h-Tagesmaxima über die sechs ozonreichsten Monate " +
+          "des Jahres — die WHO-Langzeitkennzahl.",
+  },
+  days_8h_over_120: {
+    label: "Tage über EU-Zielwert", unit: "Tage",
+    ref: [[25, "EU: max. 25 Tage im 3-Jahres-Mittel"]],
+    note: "Tage, an denen das Tagesmaximum des gleitenden 8-h-Mittels über " +
+          "120 µg/m³ lag.",
+  },
+  max_1h: {
+    label: "Höchster 1-h-Wert", unit: "µg/m³",
+    ref: [[180, "Informationsschwelle 180"]],
+    note: "Der höchste einzelne Stundenmittelwert des Jahres.",
+  },
+};
+
+function renderStamp(d){
+  const s = $("stamp"); s.textContent = "";
+  s.appendChild(document.createTextNode("Stand der Quelle: "));
+  s.appendChild(el("b", {text: d.source_time_raw || "unbekannt"}));
+  const st = parseTs(d.source_time);
+  if (st){
+    const mins = Math.round((Date.now() - st.getTime()) / 6e4);
+    const age = mins < 90 ? `${Math.max(0,mins)} min`
+                          : `${Math.round(mins/60)} h`;
+    const span = el("span", {class: mins > 180 ? "stale" : ""},
+      ` · vor ${age}`);
+    s.appendChild(span);
+  }
+  const h = d.history || {points:0, span_hours:0};
+  s.appendChild(document.createTextNode(
+    ` · eigene Historie: ${h.points} ` +
+    (h.points === 1 ? "Messpunkt" : "Messpunkte") +
+    ` über ${h.span_hours} h`));
+}
+
+function renderHero(d){
+  const su = d.summary || {};
+  const status = su.overall_training_status || "unknown";
+  const worst = (d.stations || []).find(s => s.short === su.worst);
+  $("heroKey").textContent = worst
+    ? `Lage jetzt · höchste Station (${worst.short})`
+    : "Lage jetzt";
+  const w = $("heroWord"); w.textContent = "";
+  w.className = "word s-" + status;
+  w.appendChild(el("span", {class:"glyph", "aria-hidden":"true",
+                            text: GLYPH[status] || "?"}));
+  w.appendChild(el("span", {class:"t",
+    style:"color:var(--ink-1)",
+    text: worst && worst.training ? worst.training.word : STATUS_DE[status]}));
+
+  let advice = worst && worst.training ? worst.training.advice : "";
+  if (su.any_info_threshold){
+    advice = "Informationsschwelle von 180 µg/m³ erreicht — das ist der " +
+             "offizielle Warnwert. Outdoor-Sport heute absagen.";
+  }
+  $("heroAdvice").textContent = advice +
+    (su.eu_target_exceeded_at && su.eu_target_exceeded_at.length
+      ? "  EU-Zielwert (8 h) überschritten an: " +
+        su.eu_target_exceeded_at.join(", ") + "."
+      : "");
+
+  $("heroPick").textContent = su.cleanest || "–";
+  $("heroPickSub").textContent = su.cleanest_value !== null &&
+    su.cleanest_value !== undefined
+      ? `${su.cleanest_value} µg/m³ · höchste Station ${su.worst_value} µg/m³`
+      : "keine Werte";
+
+  // Bestes Fenster: Archiv (23 Jahre) schlaegt selbst geloggte Historie
+  // schlaegt Faustregel.
+  const arc = d.archive;
+  const prof = d.hour_profile || {};
+  const abw = arc && arc.available ? arc.overall_best_window : null;
+  const bw = prof.best_window;
+  const hw = $("heroWindow"), hs = $("heroWindowSub");
+  if (abw){
+    hw.textContent = `${pad2(abw.from_hour)}–${pad2(abw.to_hour)} Uhr`;
+    const yrs = arc.years || [];
+    hs.textContent = `Median ${abw.mean} µg/m³ · aus ${yrs[0]}–${yrs[yrs.length-1]}` +
+      ` gemessen (${Math.round((arc.total_hours||0)/1000)} Tsd. Stunden)`;
+  } else if (bw){
+    hw.textContent = `${pad2(bw.from_hour)}–${pad2(bw.to_hour)} Uhr`;
+    hs.textContent = `Median ${bw.mean} µg/m³ · aus ${prof.n_days} geloggten Tagen`;
+  } else {
+    hw.textContent = "05–09 Uhr";
+    hs.textContent = "Physikalische Faustregel · eigenes Profil ab 2 Tagen " +
+      "Historie" + (prof.n_days ? ` (bisher ${prof.n_days})` : "") +
+      " — oder eea_archive.py --build für 23 Jahre";
+  }
+
+  // Heute im Langzeitvergleich: die am hoechsten belastete Station fuehrt,
+  // konsistent mit dem Hero-Urteil darueber.
+  const ctxs = arcStations(d).map(s => s.context)
+    .filter(c => c && c.percentile !== null && c.percentile !== undefined);
+  const wrap = $("heroCtxWrap");
+  if (ctxs.length){
+    const top = ctxs.reduce((a,b) => b.percentile > a.percentile ? b : a);
+    const st = arcStations(d).find(s => s.context === top);
+    wrap.hidden = false;
+    $("heroCtx").textContent = `${top.percentile}. Perzentil`;
+    $("heroCtxSub").textContent =
+      `${st ? st.short + " " : ""}${top.today_max_1h} µg/m³ · Median ` +
+      `${top.median}, Höchstwert ${top.max} für ${pad2(top.day)}.${pad2(top.month)}. ` +
+      `±${top.window_days} Tage seit ${(top.years||[])[0]}`;
+  } else {
+    wrap.hidden = true;
+  }
+}
+
+function renderTiles(d){
+  const box = $("tiles"); box.textContent = "";
+  for (const s of d.stations){
+    const t = s.training || {}, day = s.day || {}, tr = s.trend || {};
+    const tile = el("section", {class:"card tile"});
+
+    const hd = el("div", {class:"hd"});
+    hd.appendChild(el("span", {class:"key",
+      style:`background:${colorOf(s.slot)}`, "aria-hidden":"true"}));
+    hd.appendChild(el("span", {class:"nm", text: s.short}));
+    hd.appendChild(el("span", {class:"alt",
+      text: (s.altitude_m_approx ? `ca. ${s.altitude_m_approx} m` : "") +
+            (s.kind === "hoehe" ? " · Höhenlage" : "")}));
+    tile.appendChild(hd);
+
+    const val = el("div", {class:"val"});
+    val.appendChild(el("span", {class:"num", text: fmt(s.akt_1h)}));
+    val.appendChild(el("span", {class:"unit", text:"µg/m³ · 1 h"}));
+    if (tr.delta !== null && tr.delta !== undefined){
+      const sign = tr.delta > 0 ? "+" : "";
+      val.appendChild(el("span", {class:"tr",
+        text:`${tr.arrow} ${sign}${tr.delta}`}));
+    }
+    tile.appendChild(val);
+
+    tile.appendChild(sparkline(d, s));
+    tile.appendChild(statusChip(t.status || "unknown", t.word || "–"));
+
+    const meta = el("div", {class:"meta"});
+    meta.appendChild(el("span", {}, "8-h-Max ",
+      el("b", {text: fmt(s.max_8h)})));
+    meta.appendChild(el("span", {style:"text-align:right", text: day.label || ""}));
+    tile.appendChild(meta);
+
+    const meta2 = el("div", {class:"meta", style:"border-top:0;padding-top:2px"});
+    meta2.appendChild(el("span", {}, "1-h-Max heute ",
+      el("b", {text: fmt(s.max_1h)})));
+    meta2.appendChild(el("span", {}, "Vortag ",
+      el("b", {text: fmt(s.prev_max_8h)})));
+    tile.appendChild(meta2);
+
+    const ac = arcById(d, s.id);
+    if (ac && ac.context && ac.context.percentile !== null &&
+        ac.context.percentile !== undefined){
+      const c = ac.context;
+      const m3 = el("div", {class:"meta", style:"border-top:0;padding-top:2px"});
+      m3.appendChild(el("span", {}, "Langzeit ",
+        el("b", {text: c.percentile + ". Perz."})));
+      m3.appendChild(el("span", {text: `Median ${c.median}`}));
+      tile.appendChild(m3);
+    }
+
+    box.appendChild(tile);
+  }
+}
+
+/* ------------------------------------------------------- Verlaufsfenster --- */
+function sliceHistory(d){
+  const h = d.history || {t:[], akt_1h:{}};
+  const times = (h.t || []).map(parseTs);
+  const n = times.length;
+  let from = 0;
+  if (n){
+    const last = times[n-1];
+    if (last){
+      const cut = last.getTime() - state.rangeH * 36e5;
+      while (from < n && times[from] && times[from].getTime() < cut) from++;
+    }
+  }
+  const idx = [];
+  for (let i = from; i < n; i++) if (times[i]) idx.push(i);
+  return {
+    times: idx.map(i => times[i]),
+    series: (d.stations || []).map(s => ({
+      id: s.id, short: s.short, label: s.chart_label || s.short, slot: s.slot,
+      vals: idx.map(i => {
+        const a = (h.akt_1h || {})[s.id];
+        return a ? (a[i] === undefined ? null : a[i]) : null;
+      }),
+    })),
+  };
+}
+
+/* -------------------------------------------------------------- Diagramm --- */
+/* Der rechte Rand gehoert exklusiv den Serien-Endlabels. Schwellwert-Labels
+   sitzen dagegen INNEN am linken Rand mit einem Halo in Flaechenfarbe — im
+   gemeinsamen Gutter haben sich beide gegenseitig ueberschrieben. */
+const PAD = {t:22, r:104, b:30, l:42};
+const PLOT_H = 250;
+const LAB_GAP = 14;      // Mindestabstand gestapelter Endlabels
+
+function thrLabel(s, x, y, text){
+  const t = svg("text", {class:"thrlab", x:x, y:y, text:text});
+  t.setAttribute("paint-order", "stroke");
+  t.setAttribute("stroke", "var(--surface-1)");
+  t.setAttribute("stroke-width", "3.5");
+  t.setAttribute("stroke-linejoin", "round");
+  s.appendChild(t);
+}
+
+function yDomainMax(vals){
+  const m = Math.max(0, ...vals.filter(v => v !== null && v !== undefined));
+  return Math.max(200, Math.ceil((m * 1.08) / 20) * 20);
+}
+
+function showEmpty(title, sub, progress){
+  const e = $("chEmpty");
+  e.hidden = false; e.textContent = "";
+  e.appendChild(el("div", {class:"big", text:title}));
+  const p = el("p", {style:"margin:0;max-width:46ch;display:inline-block"});
+  p.appendChild(document.createTextNode(sub));
+  e.appendChild(p);
+  if (progress > 0){
+    const bar = el("div", {class:"bar"});
+    bar.appendChild(el("i", {style:`width:${Math.min(100, progress*100)}%`}));
+    e.appendChild(bar);
+  }
+  $("chart").setAttribute("height", "0");
+  $("plotwrap").hidden = true;
+  $("legend").hidden = true;
+}
+
+function renderChart(win){
+  const active = win.series.filter(s => !state.hidden.has(s.id));
+  const drawable = active.filter(s => s.vals.filter(v => v !== null).length >= 2);
+
+  if (win.times.length < 2 || !drawable.length){
+    const pts = win.times.length;
+    showEmpty(
+      pts <= 1 ? "Die Historie wird noch aufgebaut."
+               : "Zu wenig Verlauf im gewählten Zeitraum.",
+      pts <= 1
+        ? "Die Quelle veröffentlicht keinen Zahlen-Verlauf, deshalb schreibt " +
+          "der Scraper ihn selbst mit. Ab dem zweiten stündlichen Log-Eintrag " +
+          "erscheint hier eine Kurve — Punkte bisher: " + pts + "."
+        : "Wähle einen größeren Zeitraum oder blende Stationen wieder ein.",
+      pts / 2);
+    return;
+  }
+  $("chEmpty").hidden = true;
+  $("plotwrap").hidden = false;
+  $("legend").hidden = false;
+
+  const wrap = $("plotwrap");
+  const W = Math.max(340, wrap.clientWidth - 36);
+  const H = PLOT_H;
+  const s = $("chart");
+  s.textContent = "";
+  s.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  s.setAttribute("height", H);
+  s.setAttribute("width", W);
+
+  const x0 = PAD.l, x1 = W - PAD.r, y0 = PAD.t, y1 = H - PAD.b;
+  const t0 = win.times[0].getTime();
+  const t1 = win.times[win.times.length-1].getTime();
+  const span = Math.max(1, t1 - t0);
+  const yMax = yDomainMax(drawable.flatMap(d => d.vals).concat([180]));
+  const X = (d) => x0 + (d.getTime() - t0) / span * (x1 - x0);
+  const Y = (v) => y1 - (v / yMax) * (y1 - y0);
+
+  // Gefahrenband ueber der Informationsschwelle: sehr leise, nur Kontext.
+  if (yMax > 180){
+    s.appendChild(svg("rect", {x:x0, y:Y(yMax), width:x1-x0, height:Y(180)-Y(yMax),
+      fill:"var(--critical)", opacity:.055}));
+  }
+
+  // Y-Grid: durchgezogene Haarlinien, eine Nuance ueber der Flaeche.
+  for (let v = 0; v <= yMax; v += 50){
+    s.appendChild(svg("line", {class:"gridline", x1:x0, x2:x1, y1:Y(v), y2:Y(v)}));
+    s.appendChild(svg("text", {class:"tick", x:x0-8, y:Y(v)+4,
+      "text-anchor":"end", text:String(v)}));
+  }
+  s.appendChild(svg("text", {x:x0-8, y:11, "text-anchor":"end",
+    style:"font-size:10.5px", text:"µg/m³"}));
+
+  // Referenzlinien. Gestrichelt und in gedaempfter Schrift statt in
+  // Statusfarbe — sonst konkurrieren sie mit den Serienfarben.
+  const thr = state.data.thresholds || {};
+  for (const [v, lab] of [[thr.who_short_8h||100, "WHO 100"],
+                          [thr.eu_target_8h||120, "EU-Ziel 120"],
+                          [thr.at_info_1h||180, "Infoschwelle 180"]]){
+    if (v > yMax) continue;
+    s.appendChild(svg("line", {class:"thr", x1:x0, x2:x1, y1:Y(v), y2:Y(v)}));
+    thrLabel(s, x0 + 5, Y(v) - 4, lab);
+  }
+
+  // X-Achse
+  s.appendChild(svg("line", {class:"baseline", x1:x0, x2:x1, y1:y1, y2:y1}));
+  // Ticks aus dem Zeitbereich ableiten, nicht aus den Datenpunkten: bei einer
+  // Datenluecke fehlten sonst genau dort die Achsenbeschriftungen.
+  const stepH = state.rangeH <= 24 ? 4 : (state.rangeH <= 48 ? 8 : 12);
+  let lastDay = null;
+  const first = new Date(win.times[0]);
+  first.setMinutes(0, 0, 0);
+  while (first.getHours() % stepH !== 0) first.setHours(first.getHours() + 1);
+  for (let d = first; d.getTime() <= t1; d = new Date(d.getTime() + stepH*36e5)){
+    const px = X(d);
+    if (px < x0 - 1 || px > x1 + 1) continue;
+    s.appendChild(svg("line", {class:"gridline", x1:px, x2:px, y1:y1, y2:y1+4}));
+    s.appendChild(svg("text", {class:"tick", x:px, y:y1+16,
+      "text-anchor":"middle", text:hhmm(d)}));
+    const dk = d.toDateString();
+    if (dk !== lastDay){
+      s.appendChild(svg("text", {class:"tick", x:px, y:y1+27,
+        "text-anchor":"middle", style:"font-size:10px;opacity:.8",
+        text:dayMon(d)}));
+      lastDay = dk;
+    }
+  }
+
+  // Linien. Luecken > 2 h brechen den Pfad, damit ein Cron-Ausfall nicht als
+  // gerade Linie durch die Landschaft interpoliert wird.
+  const MAXGAP = 2 * 36e5;      // groessere Luecken werden nicht verbunden
+  const ends = [];
+  for (const ser of drawable){
+    // Erst die zeichenbaren Indizes sammeln, dann Segmente bilden. So laesst
+    // sich erkennen, welche Punkte allein stehen: ein einzelner Punkt ergibt
+    // nur ein "M" ohne "L" und waere sonst unsichtbar — genau so verschwand
+    // der Tagespeak, wenn er zwischen zwei Luecken lag.
+    const idx = [];
+    for (let i = 0; i < win.times.length; i++){
+      const v = ser.vals[i];
+      if (v !== null && v !== undefined) idx.push(i);
+    }
+    const segs = [];
+    let cur = [];
+    for (const i of idx){
+      if (cur.length && win.times[i] - win.times[cur[cur.length-1]] > MAXGAP){
+        segs.push(cur); cur = [];
+      }
+      cur.push(i);
+    }
+    if (cur.length) segs.push(cur);
+
+    let dpath = "";
+    for (const seg of segs){
+      seg.forEach((i, k) => {
+        dpath += (k ? "L" : "M") + X(win.times[i]).toFixed(1) + " "
+              + Y(ser.vals[i]).toFixed(1) + " ";
+      });
+    }
+    const path = svg("path", {class:"line", d:dpath, stroke:colorOf(ser.slot)});
+    if (state.pattern && DASH[ser.slot]) path.setAttribute("stroke-dasharray", DASH[ser.slot]);
+    s.appendChild(path);
+
+    for (const seg of segs){
+      if (seg.length !== 1) continue;
+      const i = seg[0];
+      s.appendChild(svg("circle", {cx:X(win.times[i]), cy:Y(ser.vals[i]), r:3,
+        fill:colorOf(ser.slot), class:"focusdot"}));
+    }
+
+    let li = -1;
+    for (let i = win.times.length-1; i >= 0; i--){
+      if (ser.vals[i] !== null && ser.vals[i] !== undefined){ li = i; break; }
+    }
+    if (li >= 0) ends.push({ser, x:X(win.times[li]), y:Y(ser.vals[li]),
+                            v:ser.vals[li]});
+  }
+
+  // Direktlabels an den Linienenden. Zweitkodierung neben der Farbe und
+  // gleichzeitig die "Relief"-Pflicht fuer die kontrastschwachen Slots.
+  ends.sort((a,b) => a.y - b.y);
+  for (let i = 1; i < ends.length; i++){
+    if (ends[i].y - ends[i-1].y < LAB_GAP) ends[i].y = ends[i-1].y + LAB_GAP;
+  }
+  for (const e of ends){
+    s.appendChild(svg("circle", {cx:e.x, cy:Y(e.v), r:3.5,
+      fill:colorOf(e.ser.slot), class:"focusdot"}));
+    // Verbindungsstrich, wenn das Label vom Linienende weggeschoben wurde.
+    if (Math.abs(e.y - Y(e.v)) > 2){
+      s.appendChild(svg("line", {x1:e.x+4, y1:Y(e.v), x2:x1+3, y2:e.y,
+        stroke:colorOf(e.ser.slot), "stroke-width":1, opacity:.45}));
+    }
+    s.appendChild(svg("text", {class:"endlab", x:x1+6, y:e.y+4,
+      text:`${e.ser.label} ${e.v}`}));
+  }
+
+  // Hover- und Fokus-Layer: Crosshair sucht das X, ein Tooltip fuer alle Serien.
+  const cross = svg("line", {class:"cross", y1:y0, y2:y1, x1:-99, x2:-99});
+  const dots  = svg("g", {});
+  s.appendChild(cross); s.appendChild(dots);
+  const hit = svg("rect", {x:x0, y:y0, width:x1-x0, height:y1-y0,
+    fill:"transparent", style:"cursor:crosshair"});
+  s.appendChild(hit);
+
+  const nearest = (clientX) => {
+    const box = s.getBoundingClientRect();
+    const px = (clientX - box.left) / box.width * W;
+    let bi = 0, bd = Infinity;
+    win.times.forEach((d, i) => {
+      const dd = Math.abs(X(d) - px);
+      if (dd < bd){ bd = dd; bi = i; }
+    });
+    return bi;
+  };
+  const focusAt = (i) => {
+    state.focus = i;
+    const d = win.times[i]; if (!d) return;
+    const px = X(d);
+    cross.setAttribute("x1", px); cross.setAttribute("x2", px);
+    dots.textContent = "";
+    const rows = [];
+    for (const ser of drawable){
+      const v = ser.vals[i];
+      if (v === null || v === undefined) continue;
+      dots.appendChild(svg("circle", {cx:px, cy:Y(v), r:4.5,
+        fill:colorOf(ser.slot), class:"focusdot"}));
+      rows.push({ser, v});
+    }
+    rows.sort((a,b) => b.v - a.v);
+
+    const tip = $("tip"); tip.textContent = "";
+    tip.appendChild(el("div", {class:"th",
+      text:`${dayMon(d)} ${hhmm(d)} · 1-h-Mittel`}));
+    for (const r of rows){
+      const row = el("div", {class:"r"});
+      row.appendChild(el("span", {class:"k",
+        style:`background:${colorOf(r.ser.slot)}`, "aria-hidden":"true"}));
+      row.appendChild(el("span", {class:"v", text:String(r.v)}));
+      row.appendChild(el("span", {class:"n", text:r.ser.short}));
+      tip.appendChild(row);
+    }
+    tip.classList.add("on");
+    const tw = tip.offsetWidth || 180;
+    const scale = (s.getBoundingClientRect().width || W) / W;
+    let left = px * scale + 18 + 18;
+    if (left + tw > wrap.clientWidth - 8) left = px * scale + 18 - tw - 18;
+    tip.style.left = Math.max(8, left) + "px";
+    tip.style.top = (PAD.t + 6) + "px";
+    $("chDesc").textContent =
+      `${dayMon(d)} ${hhmm(d)}: ` +
+      rows.map(r => `${r.ser.short} ${r.v} µg/m³`).join(", ");
+  };
+  const clear = () => {
+    cross.setAttribute("x1", -99); cross.setAttribute("x2", -99);
+    dots.textContent = "";
+    $("tip").classList.remove("on");
+  };
+  hit.addEventListener("pointermove", (e) => focusAt(nearest(e.clientX)));
+  hit.addEventListener("pointerleave", clear);
+
+  // Tastatur: derselbe Readout wie beim Hover.
+  s.setAttribute("tabindex", "0");
+  s.onkeydown = (e) => {
+    const n = win.times.length;
+    let i = state.focus === null ? n - 1 : state.focus;
+    if (e.key === "ArrowRight") i = Math.min(n-1, i+1);
+    else if (e.key === "ArrowLeft") i = Math.max(0, i-1);
+    else if (e.key === "Home") i = 0;
+    else if (e.key === "End") i = n-1;
+    else if (e.key === "Escape"){ clear(); state.focus = null; return; }
+    else return;
+    e.preventDefault(); focusAt(i);
+  };
+  s.onblur = clear;
+
+  const nActive = drawable.length;
+  const src = (state.data.history || {}).sources || {};
+  let origin = "";
+  if (src.archive){
+    const until = parseTs(src.archive_until);
+    origin = ` · ${src.archive} Werte aus dem EEA-Archiv` +
+      (until ? ` (bis ${hhmm(until)})` : "") +
+      (src.log ? `, ${src.log} aus dem eigenen Log danach` : "");
+  } else if (src.log){
+    origin = ` · ${src.log} Werte aus dem eigenen Log`;
+  }
+  $("chNote").textContent =
+    `${win.times.length} Messpunkte · ${nActive} von ${win.series.length} ` +
+    `Stationen${origin} · Pfeiltasten oder Maus für Werte · Lücken über 2 h ` +
+    `werden nicht interpoliert`;
+}
+
+/* --------------------------------------------------------------- Legende --- */
+/* Linien-Key als echtes SVG, damit im Muster-Modus genau das Strichmuster der
+   Kurve in der Legende steht. Mit CSS-Rahmen war ein 14px breiter "dashed"
+   Strich von einem durchgezogenen nicht zu unterscheiden. */
+function lineKey(slot){
+  const w = 20, h = 8;
+  const s = svg("svg", {width:w, height:h, viewBox:`0 0 ${w} ${h}`,
+    "aria-hidden":"true", style:"flex:0 0 auto;overflow:visible"});
+  const l = svg("line", {x1:0, y1:h/2, x2:w, y2:h/2, stroke:colorOf(slot),
+    "stroke-width":2.5, "stroke-linecap":"round"});
+  if (state.pattern && DASH[slot]) l.setAttribute("stroke-dasharray", DASH[slot]);
+  s.appendChild(l);
+  return s;
+}
+
+function renderLegend(d, win){
+  const box = $("legend"); box.textContent = "";
+  for (const s of d.stations){
+    const off = state.hidden.has(s.id);
+    const b = el("button", {"aria-pressed": String(!off),
+      title: off ? "Station einblenden" : "Station ausblenden"});
+    b.appendChild(lineKey(s.slot));
+    b.appendChild(el("span", {text: s.short}));
+    b.onclick = () => {
+      if (off) state.hidden.delete(s.id); else state.hidden.add(s.id);
+      render();
+    };
+    box.appendChild(b);
+  }
+}
+
+/* ---------------------------------------------------------- Tagesgang ----- */
+function renderProfile(d){
+  const card = $("profCard");
+  const arcs = arcStations(d);
+  // Archiv schlaegt Eigenlog: 5 Jahre Saisondaten statt zwei Tage.
+  const useArc = arcs.length > 0 && arcs.some(s => s.hour_profile);
+  const prof = d.hour_profile || {};
+  if (!useArc && !prof.sufficient){ card.hidden = true; return; }
+  card.hidden = false;
+
+  const visible = arcs.filter(s => !state.hidden.has(s.id));
+  const single = useArc && visible.length === 1;
+  if (useArc){
+    const p0 = (visible[0] || arcs[0]).hour_profile || {};
+    const yrs = p0.years || [];
+    $("prH").textContent = "Tagesgang · Median je Stunde (Ozonsaison)";
+    $("prNote").textContent =
+      `Median des 1-h-Werts je Stunde aus ${yrs[0]}–${yrs[yrs.length-1]}, ` +
+      `nur April–September (${p0.n_days} Saisontage). Das ist die belastbare ` +
+      `Antwort darauf, wann es tatsächlich sauber ist. ` +
+      (single
+        ? "Das Band zeigt das 25.–75. Perzentil."
+        : "Einzelne Station in der Legende auswählen, um ihr 25.–75.-Perzentil-Band zu sehen.");
+  } else {
+    $("prH").textContent = "Tagesgang · Median je Stunde";
+    $("prNote").textContent =
+      `Median des 1-h-Werts je Stunde, aus ${prof.n_days} geloggten Tagen. ` +
+      `Für 23 Jahre Messdaten: eea_archive.py --build`;
+  }
+
+  const wrap = card.querySelector(".plotwrap");
+  const W = Math.max(340, wrap.clientWidth - 36), H = 208;
+  const s = $("prof"); s.textContent = "";
+  s.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  s.setAttribute("height", H); s.setAttribute("width", W);
+
+  const x0 = PAD.l, x1 = W - PAD.r, y0 = PAD.t, y1 = H - PAD.b;
+  const med = {};
+  const band = {};
+  if (useArc){
+    for (const st of arcs){
+      const hp = st.hour_profile || {};
+      med[st.id] = hp.median || [];
+      band[st.id] = {lo: hp.p25 || [], hi: hp.p75 || []};
+    }
+  } else {
+    Object.assign(med, prof.median_akt_1h || {});
+  }
+  const all = Object.values(med).flat().filter(v => v !== null && v !== undefined);
+  const bandHi = single ? (band[visible[0].id] || {}).hi || [] : [];
+  const yMax = yDomainMax(all.concat(bandHi.filter(v => v != null)).concat([120]));
+  const X = (h) => x0 + h / 23 * (x1 - x0);
+  const Y = (v) => y1 - (v / yMax) * (y1 - y0);
+
+  for (let v = 0; v <= yMax; v += 50){
+    s.appendChild(svg("line", {class:"gridline", x1:x0, x2:x1, y1:Y(v), y2:Y(v)}));
+    s.appendChild(svg("text", {class:"tick", x:x0-8, y:Y(v)+4,
+      "text-anchor":"end", text:String(v)}));
+  }
+  s.appendChild(svg("text", {x:x0-8, y:11, "text-anchor":"end",
+    style:"font-size:10.5px", text:"µg/m³"}));
+  const thr = d.thresholds || {};
+  for (const [v, lab] of [[thr.who_short_8h||100,"WHO 100"],
+                          [thr.eu_target_8h||120,"EU-Ziel 120"],
+                          [thr.at_info_1h||180,"Infoschwelle 180"]]){
+    if (v > yMax) continue;
+    s.appendChild(svg("line", {class:"thr", x1:x0, x2:x1, y1:Y(v), y2:Y(v)}));
+    thrLabel(s, x0 + 5, Y(v) - 4, lab);
+  }
+  const bw = prof.best_window;
+  if (bw){
+    s.appendChild(svg("rect", {x:X(bw.from_hour), y:y0,
+      width:Math.max(2, X(Math.min(23,bw.to_hour)) - X(bw.from_hour)),
+      height:y1-y0, fill:"var(--good)", opacity:.09}));
+    s.appendChild(svg("text", {x:X(bw.from_hour)+4, y:y0+11,
+      style:"font-size:10.5px;font-weight:600", text:"bestes Fenster"}));
+  }
+  s.appendChild(svg("line", {class:"baseline", x1:x0, x2:x1, y1:y1, y2:y1}));
+  for (let h = 0; h <= 23; h += 3){
+    s.appendChild(svg("text", {class:"tick", x:X(h), y:y1+16,
+      "text-anchor":"middle", text:String(h).padStart(2,"0")}));
+  }
+  s.appendChild(svg("text", {x:x1, y:y1+27, "text-anchor":"end",
+    style:"font-size:10px", text:"Stunde"}));
+
+  // Perzentil-Band nur bei genau einer sichtbaren Station: vier
+  // uebereinanderliegende Baender sind Matsch.
+  if (single){
+    const b = band[visible[0].id] || {};
+    const lo = b.lo || [], hi = b.hi || [];
+    let up = "", dn = "";
+    for (let h = 0; h < 24; h++){
+      if (hi[h] == null || lo[h] == null) continue;
+      up += (up ? "L" : "M") + X(h).toFixed(1) + " " + Y(hi[h]).toFixed(1) + " ";
+    }
+    for (let h = 23; h >= 0; h--){
+      if (hi[h] == null || lo[h] == null) continue;
+      dn += "L" + X(h).toFixed(1) + " " + Y(lo[h]).toFixed(1) + " ";
+    }
+    if (up && dn){
+      s.appendChild(svg("path", {d: up + dn + "Z",
+        fill: colorOf(visible[0].slot), opacity: .14, stroke: "none"}));
+    }
+  }
+
+  const ends = [];
+  for (const st of (useArc ? arcs : d.stations)){
+    if (state.hidden.has(st.id)) continue;
+    const vals = med[st.id] || [];
+    let dp = "", pen = false, li = -1;
+    for (let h = 0; h < 24; h++){
+      const v = vals[h];
+      if (v === null || v === undefined){ pen = false; continue; }
+      dp += (pen ? "L" : "M") + X(h).toFixed(1) + " " + Y(v).toFixed(1) + " ";
+      pen = true; li = h;
+    }
+    if (!dp) continue;
+    const p = svg("path", {class:"line", d:dp, stroke:colorOf(st.slot)});
+    if (state.pattern && DASH[st.slot]) p.setAttribute("stroke-dasharray", DASH[st.slot]);
+    s.appendChild(p);
+    if (li >= 0) ends.push({label: st.chart_label || st.short, slot:st.slot,
+                            y0:Y(vals[li]), y:Y(vals[li]),
+                            v:Math.round(vals[li])});
+  }
+  ends.sort((a,b) => a.y - b.y);
+  for (let i = 1; i < ends.length; i++){
+    if (ends[i].y - ends[i-1].y < LAB_GAP) ends[i].y = ends[i-1].y + LAB_GAP;
+  }
+  for (const e of ends){
+    if (Math.abs(e.y - e.y0) > 2){
+      s.appendChild(svg("line", {x1:x1-2, y1:e.y0, x2:x1+3, y2:e.y,
+        stroke:colorOf(e.slot), "stroke-width":1, opacity:.45}));
+    }
+    s.appendChild(svg("text", {class:"endlab", x:x1+6, y:e.y+4,
+      text:`${e.label} ${e.v}`}));
+  }
+  $("prDesc").textContent = (useArc ? arcs : d.stations).map(st => {
+    const v = (med[st.id]||[]).map((x,h) => x === null ? null : `${h}h ${Math.round(x)}`)
+      .filter(Boolean).join(", ");
+    return `${st.short}: ${v}`;
+  }).join(" — ");
+
+  const lg = $("prLegend"); lg.textContent = "";
+  for (const st of (useArc ? arcs : d.stations)){
+    if (state.hidden.has(st.id)) continue;
+    const b = el("span", {style:
+      "display:flex;align-items:center;gap:7px;color:var(--ink-2)"});
+    b.appendChild(lineKey(st.slot));
+    b.appendChild(el("span", {text: st.short}));
+    lg.appendChild(b);
+  }
+}
+
+/* -------------------------------------------------------------- Sparkline -- */
+function sparkline(d, st){
+  const box = el("div", {class:"spark"});
+  const h = d.history || {t:[], akt_1h:{}};
+  const vals = (h.akt_1h || {})[st.id] || [];
+  const pts = vals.map((v,i) => ({v, i})).filter(p => p.v !== null &&
+    p.v !== undefined);
+  const W = 220, H = 36;
+  const s = svg("svg", {viewBox:`0 0 ${W} ${H}`, height:H,
+    preserveAspectRatio:"none", "aria-hidden":"true"});
+  if (pts.length < 2){
+    box.appendChild(el("span", {style:
+      "font-size:11.5px;color:var(--ink-muted);display:block;padding-top:11px",
+      text:`Verlauf ab 2 Log-Einträgen (${pts.length})`}));
+    return box;
+  }
+  const lo = Math.min(...pts.map(p => p.v)), hi = Math.max(...pts.map(p => p.v));
+  const pad = Math.max(6, (hi - lo) * .18);
+  const Y = (v) => H - 4 - (v - (lo - pad)) / ((hi + pad) - (lo - pad)) * (H - 9);
+  const X = (i) => (i / Math.max(1, vals.length - 1)) * (W - 5) + 2.5;
+  let dp = "", pen = false;
+  for (let i = 0; i < vals.length; i++){
+    const v = vals[i];
+    if (v === null || v === undefined){ pen = false; continue; }
+    dp += (pen ? "L" : "M") + X(i).toFixed(1) + " " + Y(v).toFixed(1) + " ";
+    pen = true;
+  }
+  s.appendChild(svg("path", {d:dp, fill:"none", stroke:colorOf(st.slot),
+    "stroke-width":2, "vector-effect":"non-scaling-stroke",
+    "stroke-linejoin":"round"}));
+  const last = pts[pts.length-1];
+  s.appendChild(svg("circle", {cx:X(last.i), cy:Y(last.v), r:3.5,
+    fill:colorOf(st.slot), stroke:"var(--surface-1)", "stroke-width":2,
+    "vector-effect":"non-scaling-stroke"}));
+  box.appendChild(s);
+  return box;
+}
+
+
+/* ------------------------------------------------------- Jahresreihe ------ */
+/* Drei Kennzahlen mit unterschiedlichen Einheiten (µg/m³ und Tage). Deshalb
+   ein Umschalter und immer nur EINE Achse - nie zwei y-Skalen in einem Plot. */
+function renderYearly(d){
+  const card = $("yearCard");
+  const arcs = arcStations(d);
+  if (!arcs.length || !arcs.some(s => s.yearly)){ card.hidden = true; return; }
+  card.hidden = false;
+
+  const key = METRICS[state.metric] ? state.metric : "peak_season_mean";
+  const M = METRICS[key];
+  const years = (d.archive.years || []).map(Number).sort((a,b) => a-b);
+  const partial = new Set();
+  for (const st of arcs){
+    for (const [y, v] of Object.entries(st.yearly || {})){
+      if (v && v.partial) partial.add(Number(y));
+    }
+  }
+  const notePartial = partial.size
+    ? `  ${[...partial].join(", ")} ist noch nicht zu Ende — der letzte Punkt ` +
+      "ist ein Zwischenstand (hohl gezeichnet)."
+    : "";
+
+  const wrap = card.querySelector(".plotwrap");
+  const W = Math.max(340, wrap.clientWidth - 36), H = 250;
+  const sv = $("year"); sv.textContent = "";
+  sv.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  sv.setAttribute("height", H); sv.setAttribute("width", W);
+
+  const x0 = PAD.l, x1 = W - PAD.r, y0 = PAD.t, y1 = H - PAD.b;
+  const visible = arcs.filter(st => !state.hidden.has(st.id));
+  const vals = [];
+  for (const st of visible){
+    for (const y of years){
+      const v = (st.yearly || {})[String(y)];
+      if (v && v[key] !== null && v[key] !== undefined) vals.push(v[key]);
+    }
+  }
+  if (!vals.length || years.length < 2){
+    sv.setAttribute("height", 0); $("yrLegend").textContent = ""; return;
+  }
+  const refs = M.ref.map(r => r[0]);
+  const top = Math.max(...vals, ...refs);
+  const low = Math.min(...vals, ...refs);
+  const step = key === "days_8h_over_120" ? 20 : 25;
+  const yMax = Math.ceil((top * 1.06) / step) * step;
+  // Kein Zwang zur Nullbasis: das sind Linien, keine Balken. Die Untergrenze
+  // rutscht unter den kleinsten Wert UND unter die Referenzlinie, sonst liegen
+  // 24 Jahre Variation in einem Drittel der Plothoehe.
+  const yMin = Math.max(0, Math.floor((low * 0.92) / step) * step);
+  const X = (y) => x0 + (y - years[0]) / Math.max(1, years[years.length-1]-years[0]) * (x1-x0);
+  const Y = (v) => y1 - ((v - yMin) / Math.max(1, yMax - yMin)) * (y1 - y0);
+
+  for (let v = yMin; v <= yMax; v += step){
+    sv.appendChild(svg("line", {class:"gridline", x1:x0, x2:x1, y1:Y(v), y2:Y(v)}));
+    sv.appendChild(svg("text", {class:"tick", x:x0-8, y:Y(v)+4,
+      "text-anchor":"end", text:String(v)}));
+  }
+  sv.appendChild(svg("text", {x:x0-8, y:11, "text-anchor":"end",
+    style:"font-size:10.5px", text:M.unit}));
+  $("yrH").textContent = `Jahresreihe · ${years[0]}–${years[years.length-1]}`;
+  $("yrNote").textContent = M.note + notePartial +
+    (yMin > 0 ? `  Achse beginnt bei ${yMin} ${M.unit}, nicht bei null.` : "");
+  for (const [v, lab] of M.ref){
+    if (v > yMax || v < yMin) continue;
+    sv.appendChild(svg("line", {class:"thr", x1:x0, x2:x1, y1:Y(v), y2:Y(v)}));
+    thrLabel(sv, x0 + 5, Y(v) - 4, lab);
+  }
+  sv.appendChild(svg("line", {class:"baseline", x1:x0, x2:x1, y1:y1, y2:y1}));
+  // Letztes Jahr immer beschriften, aber nicht direkt neben seinen Nachbarn.
+  const tickEvery = years.length > 16 ? 4 : 2;
+  const lastY = years[years.length-1];
+  for (const y of years){
+    const regular = (y - years[0]) % tickEvery === 0;
+    if (!regular && !(y === lastY && (lastY - years[0]) % tickEvery >= 2)) continue;
+    sv.appendChild(svg("text", {class:"tick", x:X(y), y:y1+16,
+      "text-anchor":"middle", text:String(y)}));
+  }
+
+  const ends = [];
+  for (const st of visible){
+    let dp = "", pen = false, last = null;
+    for (const y of years){
+      const rec = (st.yearly || {})[String(y)];
+      const v = rec ? rec[key] : null;
+      if (v === null || v === undefined){ pen = false; continue; }
+      dp += (pen ? "L" : "M") + X(y).toFixed(1) + " " + Y(v).toFixed(1) + " ";
+      pen = true; last = {y, v, partial: !!(rec && rec.partial)};
+    }
+    if (!dp) continue;
+    const path = svg("path", {class:"line", d:dp, stroke:colorOf(st.slot)});
+    if (state.pattern && DASH[st.slot]) path.setAttribute("stroke-dasharray", DASH[st.slot]);
+    sv.appendChild(path);
+    if (last){
+      sv.appendChild(svg("circle", {cx:X(last.y), cy:Y(last.v), r:3.5,
+        fill: last.partial ? "var(--surface-1)" : colorOf(st.slot),
+        stroke: colorOf(st.slot), "stroke-width": 2}));
+      ends.push({label: st.chart_label || st.short, slot: st.slot,
+                 y0: Y(last.v), y: Y(last.v),
+                 v: Math.round(last.v * 10) / 10});
+    }
+  }
+  ends.sort((a,b) => a.y - b.y);
+  for (let i = 1; i < ends.length; i++){
+    if (ends[i].y - ends[i-1].y < LAB_GAP) ends[i].y = ends[i-1].y + LAB_GAP;
+  }
+  for (const e of ends){
+    if (Math.abs(e.y - e.y0) > 2){
+      sv.appendChild(svg("line", {x1:x1-2, y1:e.y0, x2:x1+3, y2:e.y,
+        stroke:colorOf(e.slot), "stroke-width":1, opacity:.45}));
+    }
+    sv.appendChild(svg("text", {class:"endlab", x:x1+6, y:e.y+4,
+      text:`${e.label} ${e.v}`}));
+  }
+
+  // Crosshair identisch zum Verlaufsdiagramm.
+  const cross = svg("line", {class:"cross", y1:y0, y2:y1, x1:-99, x2:-99});
+  const dots = svg("g", {});
+  sv.appendChild(cross); sv.appendChild(dots);
+  const hit = svg("rect", {x:x0, y:y0, width:x1-x0, height:y1-y0,
+    fill:"transparent", style:"cursor:crosshair"});
+  sv.appendChild(hit);
+  const tip = $("yrTip");
+  const focusYear = (yr) => {
+    const px = X(yr);
+    cross.setAttribute("x1", px); cross.setAttribute("x2", px);
+    dots.textContent = ""; tip.textContent = "";
+    tip.appendChild(el("div", {class:"th", text:`${yr} · ${M.label}`}));
+    const rows = [];
+    for (const st of visible){
+      const rec = (st.yearly || {})[String(yr)];
+      const v = rec ? rec[key] : null;
+      if (v === null || v === undefined) continue;
+      dots.appendChild(svg("circle", {cx:px, cy:Y(v), r:4.5,
+        fill:colorOf(st.slot), class:"focusdot"}));
+      rows.push({st, v, partial: !!rec.partial});
+    }
+    rows.sort((a,b) => b.v - a.v);
+    for (const r of rows){
+      const row = el("div", {class:"r"});
+      row.appendChild(el("span", {class:"k",
+        style:`background:${colorOf(r.st.slot)}`, "aria-hidden":"true"}));
+      row.appendChild(el("span", {class:"v",
+        text: String(r.v) + (r.partial ? "*" : "")}));
+      row.appendChild(el("span", {class:"n", text:r.st.short}));
+      tip.appendChild(row);
+    }
+    if (rows.some(r => r.partial)){
+      tip.appendChild(el("div", {class:"th",
+        style:"margin:5px 0 0", text:"* Jahr noch nicht zu Ende"}));
+    }
+    tip.classList.add("on");
+    const scale = (sv.getBoundingClientRect().width || W) / W;
+    const tw = tip.offsetWidth || 180;
+    let left = px * scale + 18 + 18;
+    if (left + tw > wrap.clientWidth - 8) left = px * scale + 18 - tw - 18;
+    tip.style.left = Math.max(8, left) + "px";
+    tip.style.top = (PAD.t + 6) + "px";
+    $("yrDesc").textContent = `${yr}: ` +
+      rows.map(r => `${r.st.short} ${r.v} ${M.unit}`).join(", ");
+  };
+  const nearestYear = (clientX) => {
+    const box = sv.getBoundingClientRect();
+    const px = (clientX - box.left) / box.width * W;
+    return years.reduce((best, y) =>
+      Math.abs(X(y) - px) < Math.abs(X(best) - px) ? y : best, years[0]);
+  };
+  hit.addEventListener("pointermove", (e) => focusYear(nearestYear(e.clientX)));
+  hit.addEventListener("pointerleave", () => {
+    cross.setAttribute("x1", -99); cross.setAttribute("x2", -99);
+    dots.textContent = ""; tip.classList.remove("on");
+  });
+
+  const lg = $("yrLegend"); lg.textContent = "";
+  for (const st of arcs){
+    const off = state.hidden.has(st.id);
+    const b = el("button", {"aria-pressed": String(!off)});
+    b.appendChild(lineKey(st.slot));
+    b.appendChild(el("span", {text: st.short}));
+    b.onclick = () => {
+      if (off) state.hidden.delete(st.id); else state.hidden.add(st.id);
+      render();
+    };
+    lg.appendChild(b);
+  }
+}
+
+/* --------------------------------------------------------------- Tabellen -- */
+function renderTables(d, win){
+  const card = $("tableCard");
+  card.hidden = !state.table;
+  if (!state.table) return;
+
+  const t1 = $("tblNow"); t1.textContent = "";
+  t1.appendChild(el("caption", {text:
+    `Aktuelle Werte · Stand ${d.source_time_raw || "?"} · alle Angaben in µg/m³`}));
+  const hd = el("thead");
+  const hr = el("tr");
+  for (const h of ["Station","ca. Höhe","1 h jetzt","Trend","1-h-Max","8-h-Max",
+                   "Vortag 8 h","Training","Tagesbewertung"]){
+    hr.appendChild(el("th", {scope:"col", text:h}));
+  }
+  hd.appendChild(hr); t1.appendChild(hd);
+  const tb = el("tbody");
+  for (const s of d.stations){
+    const r = el("tr");
+    r.appendChild(el("th", {scope:"row", text:s.short}));
+    r.appendChild(el("td", {text: s.altitude_m_approx ? s.altitude_m_approx + " m" : "–"}));
+    r.appendChild(el("td", {text: fmt(s.akt_1h)}));
+    r.appendChild(el("td", {text: (s.trend && s.trend.delta !== null &&
+      s.trend.delta !== undefined) ? (s.trend.delta > 0 ? "+" : "") + s.trend.delta : "–"}));
+    r.appendChild(el("td", {text: fmt(s.max_1h)}));
+    r.appendChild(el("td", {text: fmt(s.max_8h)}));
+    r.appendChild(el("td", {text: fmt(s.prev_max_8h)}));
+    r.appendChild(el("td", {text: (s.training||{}).word || "–"}));
+    r.appendChild(el("td", {text: (s.day||{}).label || "–"}));
+    tb.appendChild(r);
+  }
+  t1.appendChild(tb);
+
+  const t2 = $("tblHist"); t2.textContent = "";
+  t2.appendChild(el("caption", {text:
+    `Verlauf des 1-h-Mittels · letzte ${state.rangeH} h · ` +
+    `${win.times.length} Messpunkte`}));
+  const hd2 = el("thead"), hr2 = el("tr");
+  hr2.appendChild(el("th", {scope:"col", text:"Zeit"}));
+  for (const s of win.series) hr2.appendChild(el("th", {scope:"col", text:s.short}));
+  hd2.appendChild(hr2); t2.appendChild(hd2);
+  const tb2 = el("tbody");
+  for (let i = win.times.length - 1; i >= 0; i--){
+    const r = el("tr");
+    r.appendChild(el("th", {scope:"row",
+      text:`${dayMon(win.times[i])} ${hhmm(win.times[i])}`}));
+    for (const s of win.series) r.appendChild(el("td", {text: fmt(s.vals[i])}));
+    tb2.appendChild(r);
+  }
+  t2.appendChild(tb2);
+}
+
+/* ------------------------------------------------------------ Referenzen -- */
+function renderRef(d){
+  const sl = $("scaleList"); sl.textContent = "";
+  const scale = d.training_scale || [];
+  scale.forEach((row, i) => {
+    const prev = i ? (scale[i-1].below) : 0;
+    const range = row.below === null
+      ? `ab ${prev}`
+      : `${prev}–${row.below - 1}`;
+    const dt = el("dt", {class:"scalerow"});
+    dt.appendChild(el("span", {class:"glyph s-" + row.status,
+      "aria-hidden":"true", text: GLYPH[row.status] || "?"}));
+    dt.appendChild(el("span", {text:`${range} · ${row.word}`}));
+    sl.appendChild(dt);
+    sl.appendChild(el("dd", {text: row.advice}));
+  });
+
+  const tl = $("thrList"); tl.textContent = "";
+  const t = d.thresholds || {};
+  const rows = [
+    [`${t.who_peak_season || 60} µg/m³`,
+     "WHO-Langfristziel: Mittel der 8-h-Tagesmaxima über die sechs ozonreichsten Monate."],
+    [`${t.who_short_8h || 100} µg/m³`,
+     "WHO-Kurzzeit-Leitwert 2021, maximales 8-h-Tagesmittel. Rein gesundheitsbasiert."],
+    [`${t.eu_target_8h || 120} µg/m³`,
+     "EU-Zielwert, 8 h gleitend. Darf an begrenzt vielen Tagen pro Jahr " +
+     "überschritten werden (max. 25 im Mittel über drei Jahre)."],
+    [`${t.at_info_1h || 180} µg/m³`,
+     "Österreichische Informationsschwelle, 1-h-Mittel. Ab hier wird die " +
+     "Bevölkerung aktiv gewarnt."],
+  ];
+  for (const [k, v] of rows){
+    tl.appendChild(el("dt", {text:k}));
+    tl.appendChild(el("dd", {text:v}));
+  }
+}
+
+/* ==========================================================================
+   Bedienung
+   ========================================================================== */
+function setTheme(mode){
+  if (mode === "system") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", mode);
+  try{ localStorage.setItem("ozon-theme", mode); }catch(e){}
+  document.querySelectorAll("[data-theme-set]").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.themeSet === mode)));
+  if (state.data) render();
+}
+document.querySelectorAll("[data-theme-set]").forEach(b =>
+  b.onclick = () => setTheme(b.dataset.themeSet));
+try{
+  const saved = localStorage.getItem("ozon-theme");
+  if (saved) setTheme(saved);
+}catch(e){}
+
+document.querySelectorAll("[data-range]").forEach(b => b.onclick = () => {
+  state.rangeH = Number(b.dataset.range);
+  state.focus = null;
+  document.querySelectorAll("[data-range]").forEach(o =>
+    o.setAttribute("aria-pressed", String(o === b)));
+  if (state.data) render();
+});
+$("tableToggle").onclick = (e) => {
+  state.table = !state.table;
+  e.currentTarget.setAttribute("aria-pressed", String(state.table));
+  if (state.data) render();
+};
+document.querySelectorAll("[data-metric]").forEach(b => b.onclick = () => {
+  state.metric = b.dataset.metric;
+  document.querySelectorAll("[data-metric]").forEach(o =>
+    o.setAttribute("aria-pressed", String(o === b)));
+  if (state.data) render();
+});
+$("patternToggle").onclick = (e) => {
+  state.pattern = !state.pattern;
+  e.currentTarget.setAttribute("aria-pressed", String(state.pattern));
+  if (state.data) render();
+};
+
+let rt;
+addEventListener("resize", () => {
+  clearTimeout(rt);
+  rt = setTimeout(() => { if (state.data) render(); }, 140);
+});
+
+load(true);
+setInterval(() => load(false), 5 * 60 * 1000);
+</script>
+</body>
+</html>

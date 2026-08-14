@@ -1,0 +1,20 @@
+# Abgeleitete Daten — werden vom Cron-Job erzeugt und liegen auf gh-pages
+data.json
+archive.json
+history.jsonl
+*.tmp
+_site/
+demo/
+logs/
+
+# Roher EEA-Parquet-Cache (~26 MB). setup_mini.sh baut ihn neu.
+cache/
+
+# Python
+__pycache__/
+*.pyc
+
+# Persönliche Session-Notizen. Bewusst ausgeschlossen: das sind deine eigenen
+# Aufzeichnungen, keine Projektdatei. Wenn du sie doch veröffentlichen willst,
+# diese Zeile löschen und committen — umgekehrt geht es nicht mehr so leicht.
+ZUSAMMENFASSUNG.md
