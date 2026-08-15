@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Ozon-Logger und Deploy. Folgt den Konventionen des Agent-Servers:
+
+  * LaunchDaemon in /Library/LaunchDaemons mit UserName=agent, nicht
+    LaunchAgent. Per-User-Agents laufen nur mit aktiver Session und waeren
+    nach einem Reboot des headless Servers tot.
+  * StartCalendarInterval statt StartInterval: war die Maschine zur geplanten
+    Zeit aus, wird der Lauf uebersprungen statt nachtraeglich gefeuert.
+  * HOME, PATH und LANG muessen hier stehen. launchd setzt HOME nicht und
+    liest .zshenv nicht; ohne das scheitern git und gh.
+
+  Drei Laeufe pro Stunde, versetzt von :00. Die Quelle aktualisiert stuendlich
+  und dedupliziert wird ueber ihren Zeitstempel — zwei Laeufe duerfen also
+  ausfallen, ohne dass eine Luecke entsteht.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>io.ebs.agent.ozon</string>
+  <key>UserName</key>
+  <string>agent</string>
+  <key>GroupName</key>
+  <string>staff</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/agent/git/ozon-vorarlberg/deploy.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Minute</key><integer>7</integer></dict>
+    <dict><key>Minute</key><integer>27</integer></dict>
+    <dict><key>Minute</key><integer>47</integer></dict>
+  </array>
+  <key>StandardOutPath</key>
+  <string>/Users/agent/agents/logs/ozon/launchd.out</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/agent/agents/logs/ozon/launchd.err</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key><string>/Users/agent</string>
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>LANG</key><string>en_US.UTF-8</string>
+  </dict>
+  <key>WorkingDirectory</key>
+  <string>/Users/agent/git/ozon-vorarlberg</string>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>

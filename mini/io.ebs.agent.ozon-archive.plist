@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  EEA-Archiv nachziehen, taeglich um 04:17.
+
+  Die EEA schreibt ihren E2a-Container etwa einmal pro Tag neu (belegt am
+  Last-Modified des Blobs). Oefter abzurufen bringt nichts, seltener laesst
+  die Langzeitkennzahlen veralten. --refresh ist zwingend: ohne ihn bleibt
+  der Container im Cache stehen und die Reihe endet, wo sie beim ersten Lauf
+  endete.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>io.ebs.agent.ozon-archive</string>
+  <key>UserName</key>
+  <string>agent</string>
+  <key>GroupName</key>
+  <string>staff</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/agent/git/ozon-vorarlberg/refresh_archive.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>4</integer><key>Minute</key><integer>17</integer></dict>
+  </array>
+  <key>StandardOutPath</key>
+  <string>/Users/agent/agents/logs/ozon/archive.out</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/agent/agents/logs/ozon/archive.err</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key><string>/Users/agent</string>
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>LANG</key><string>en_US.UTF-8</string>
+  </dict>
+  <key>WorkingDirectory</key>
+  <string>/Users/agent/git/ozon-vorarlberg</string>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>

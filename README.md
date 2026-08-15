@@ -199,7 +199,10 @@ Perzentile (Lustenau 67 statt 163 µg/m³), bevor die Zuständigkeit getrennt wa
 | `fixtures/tab1O3_minimal.htm` | handgeschriebene Minimal-Fixture (ältere Struktur) |
 | `test_ozon_vorarlberg.py` | 60 Tests |
 | `test_eea_archive.py` | 73 Tests; die Quellenvergleiche brauchen den Cache, der Rest läuft offline |
-| `launchd/io.ebs.ozon-vorarlberg.plist` | stündlicher Job für macOS |
+| `deploy.sh` | scrapen, bauen, pushen. Lock, Heartbeat, Telegram bei Fehler |
+| `refresh_archive.sh` | EEA-Archiv nachziehen (täglich) |
+| `mini/install.sh` | Einrichtung auf dem Agent-Server, ohne root |
+| `mini/*.plist` | die beiden LaunchDaemons |
 
 `python3 -m unittest -v` führt alle 133 aus.
 
@@ -301,33 +304,62 @@ Aus `eea_archive.py --stats`, Stand August 2026:
   werden; `--refresh` holt Korrekturen. Ab 2024 rückwärts sind die Daten
   qualitätsgesichert (E1a bzw. AIRBASE).
 
-## Stündlich laufen lassen
+## Betrieb auf dem Agent-Server
 
-**macOS (launchd).** Pfade im Plist anpassen, dann:
+Der Logger läuft auf dem Mac mini als Benutzer `agent`, nach den Konventionen
+aus `tools-workflow/concepts/mac-mini-agent-server.md` im Brain:
 
-```
-cp launchd/io.ebs.ozon-vorarlberg.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/io.ebs.ozon-vorarlberg.plist
-launchctl start io.ebs.ozon-vorarlberg          # sofort einmal testen
-tail -f /tmp/ozon-vorarlberg.err
-```
+| | |
+|---|---|
+| `io.ebs.agent.ozon` | dreimal pro Stunde (:07, :27, :47) — scrapen, bauen, nach `gh-pages` pushen |
+| `io.ebs.agent.ozon-archive` | täglich 04:17 — EEA-Archiv nachziehen |
 
-**Linux (cron).** Alle 20 Minuten ist unproblematisch — dedupliziert wird über
-den Zeitstempel der Quelle, nicht über die Abrufzeit:
-
-```
-*/20 * * * * cd /pfad/zu/ozon-vorarlberg && /usr/bin/python3 ozon_vorarlberg.py --log --strict --out data.json --quiet >>/tmp/ozon.log 2>&1
-```
-
-Das Archiv braucht keinen häufigen Lauf. Einmal pro Woche reicht, um die
-aktuellen Wochen nachzuziehen:
+Beides sind **LaunchDaemons** in `/Library/LaunchDaemons/` mit `UserName=agent`,
+keine LaunchAgents: per-User-Agents laufen nur mit aktiver GUI-Session und wären
+nach einem Reboot des headless Servers tot.
 
 ```
-17 4 * * 1 cd /pfad/zu/ozon-vorarlberg && /usr/bin/python3 eea_archive.py --build --refresh --quiet
+ssh agent@mac-mini
+git clone git@github.com:pasrom/ozon-vorarlberg.git ~/git/ozon-vorarlberg
+cd ~/git/ozon-vorarlberg && ./mini/install.sh
 ```
 
-`--refresh` ist hier nötig: ohne ihn bleibt der Container `airquality-p` im
-Cache stehen und die Reihe endet dort, wo sie beim ersten Lauf endete.
+`install.sh` erledigt alles ohne root — venv, Abhängigkeiten, Deploy-Key,
+Archiv, Testlauf — und gibt am Ende den sudo-Block für die beiden Daemons aus.
+
+### Warum es so gebaut ist
+
+- **`StartCalendarInterval`, nicht `StartInterval`.** War die Maschine zur
+  geplanten Zeit aus, wird der Lauf übersprungen statt nachträglich gefeuert —
+  sonst gibt es nach einem Stromausfall einen Ansturm gleichzeitiger Läufe.
+- **`HOME`, `PATH`, `LANG` stehen im Plist.** launchd setzt `$HOME` nicht und
+  liest `.zshenv` nicht; ohne diese drei scheitern `git` und `gh`.
+- **Lock über `mkdir`.** `flock(1)` gibt es auf macOS nicht. Der `trap` räumt
+  den Lock bei jedem Exit ab, auch bei Signal. Steht er länger als 30 Minuten,
+  meldet der Job das per Telegram, löscht ihn aber nicht selbst — das würde
+  zwei parallele Läufe erlauben.
+- **Eigenes venv statt System-Python.** Das System-Python 3.9 des Minis hat die
+  Abhängigkeiten nicht und ist extern verwaltet; `agent` ist non-admin und kann
+  nicht `brew install`. Das venv baut auf dem vorhandenen Homebrew-Python 3.12 auf.
+- **Deploy-Key statt credential-Helper.** launchd-Jobs haben keinen Zugriff auf
+  den Schlüsselbund; über HTTPS hinge der Push still. `deploy.sh` bricht deshalb
+  ab, wenn `origin` auf HTTPS steht, statt es zu versuchen.
+- **Telegram nur im Fehlerfall**, über das vorhandene `~/agents/bin/notify.sh`.
+  Erfolgreiche Läufe schweigen, sonst wird der Kanal zu Rauschen.
+- **Logs unter `~/agents/logs/ozon/`**, wo die `newsyslog`-Rotation greift
+  (14 Tage, bzip2). Heartbeat nach jedem erfolgreichen Lauf in
+  `~/agents/state/ozon/heartbeat`.
+
+### Bedienung
+
+```
+launchctl list | grep io.ebs.agent.ozon              # Status
+sudo launchctl kickstart -k system/io.ebs.agent.ozon # sofort feuern
+tail -f ~/agents/logs/ozon/$(date +%F).log           # mitlesen
+date -r $(cat ~/agents/state/ozon/heartbeat)         # letzter Erfolg
+
+sudo launchctl bootout system/io.ebs.agent.ozon      # anhalten
+```
 
 ## Dashboard
 
