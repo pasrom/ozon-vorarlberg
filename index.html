@@ -317,6 +317,7 @@ footer a{color:var(--ink-2)}
     <div class="plotwrap">
       <svg id="prof" role="img" aria-labelledby="prH prDesc"></svg>
       <p id="prDesc" class="vh"></p>
+      <div class="tip" id="prTip" role="status" aria-live="off"></div>
     </div>
     <div class="legend" id="prLegend"></div>
   </section>
@@ -410,7 +411,6 @@ const state = {
   pattern: false,
   table: false,
   metric: "peak_season_mean",
-  focus: null,            // index into the filtered series
 };
 
 /* --------------------------------------------------------------- Helpers -- */
@@ -963,84 +963,28 @@ function renderChart(win){
       text:`${e.ser.label} ${e.v}`}));
   }
 
-  // Hover and focus layer: the crosshair finds the X, one tooltip for all series.
-  const cross = svg("line", {class:"cross", y1:y0, y2:y1, x1:-99, x2:-99});
-  const dots  = svg("g", {});
-  s.appendChild(cross); s.appendChild(dots);
-  const hit = svg("rect", {x:x0, y:y0, width:x1-x0, height:y1-y0,
-    fill:"transparent", style:"cursor:crosshair"});
-  s.appendChild(hit);
+  // Base description for screen readers: without it the chart was announced
+  // as an image with no content until someone hovered it.
+  $("chDesc").textContent =
+    `1-hour mean, ${dayMon(win.times[0])} ${hhmm(win.times[0])} to ` +
+    `${dayMon(win.times[win.times.length-1])} ${hhmm(win.times[win.times.length-1])}. ` +
+    drawable.map(ser => {
+      const last = [...ser.vals].reverse().find(v => v !== null && v !== undefined);
+      return `${ser.short} currently ${last === undefined ? "no value" : Math.round(last)}`;
+    }).join(", ") + ". Use the arrow keys for individual readings.";
 
-  const nearest = (clientX) => {
-    const box = s.getBoundingClientRect();
-    const px = (clientX - box.left) / box.width * W;
-    let bi = 0, bd = Infinity;
-    win.times.forEach((d, i) => {
-      const dd = Math.abs(X(d) - px);
-      if (dd < bd){ bd = dd; bi = i; }
-    });
-    return bi;
-  };
-  const focusAt = (i) => {
-    state.focus = i;
-    const d = win.times[i]; if (!d) return;
-    const px = X(d);
-    cross.setAttribute("x1", px); cross.setAttribute("x2", px);
-    dots.textContent = "";
-    const rows = [];
-    for (const ser of drawable){
-      const v = ser.vals[i];
-      if (v === null || v === undefined) continue;
-      dots.appendChild(svg("circle", {cx:px, cy:Y(v), r:4.5,
-        fill:colorOf(ser.slot), class:"focusdot"}));
-      rows.push({ser, v: Math.round(v)});
-    }
-    rows.sort((a,b) => b.v - a.v);
-
-    const tip = $("tip"); tip.textContent = "";
-    tip.appendChild(el("div", {class:"th",
-      text:`${dayMon(d)} ${hhmm(d)} · 1-hour mean`}));
-    for (const r of rows){
-      const row = el("div", {class:"r"});
-      row.appendChild(el("span", {class:"k",
-        style:`background:${colorOf(r.ser.slot)}`, "aria-hidden":"true"}));
-      row.appendChild(el("span", {class:"v", text:String(r.v)}));
-      row.appendChild(el("span", {class:"n", text:r.ser.short}));
-      tip.appendChild(row);
-    }
-    tip.classList.add("on");
-    const tw = tip.offsetWidth || 180;
-    const scale = (s.getBoundingClientRect().width || W) / W;
-    let left = px * scale + 18 + 18;
-    if (left + tw > wrap.clientWidth - 8) left = px * scale + 18 - tw - 18;
-    tip.style.left = Math.max(8, left) + "px";
-    tip.style.top = (PAD.t + 6) + "px";
-    $("chDesc").textContent =
-      `${dayMon(d)} ${hhmm(d)}: ` +
-      rows.map(r => `${r.ser.short} ${r.v} µg/m³`).join(", ");
-  };
-  const clear = () => {
-    cross.setAttribute("x1", -99); cross.setAttribute("x2", -99);
-    dots.textContent = "";
-    $("tip").classList.remove("on");
-  };
-  hit.addEventListener("pointermove", (e) => focusAt(nearest(e.clientX)));
-  hit.addEventListener("pointerleave", clear);
-
-  // Keyboard: the same readout as on hover.
-  s.setAttribute("tabindex", "0");
-  s.onkeydown = (e) => {
-    const n = win.times.length;
-    let i = state.focus === null ? n - 1 : state.focus;
-    if (e.key === "ArrowRight") i = Math.min(n-1, i+1);
-    else if (e.key === "ArrowLeft") i = Math.max(0, i-1);
-    else if (e.key === "Home") i = 0;
-    else if (e.key === "End") i = n-1;
-    else if (e.key === "Escape"){ clear(); state.focus = null; return; }
-    else return;
-    e.preventDefault(); focusAt(i);
-  };
-  s.onblur = clear;
+  attachCrosshair({
+    svg: s, wrap, tip: $("tip"), desc: $("chDesc"),
+    x0, x1, y0, y1, W,
+    keys: win.times.map((_t, i) => i),
+    X: (i) => X(win.times[i]),
+    header: (i) => `${dayMon(win.times[i])} ${hhmm(win.times[i])} · 1-hour mean`,
+    rowsFor: (i) => drawable
+      .filter(ser => ser.vals[i] !== null && ser.vals[i] !== undefined)
+      .map(ser => ({label: ser.short, color: colorOf(ser.slot),
+                    value: Math.round(ser.vals[i]), y: Y(ser.vals[i])}))
+      .sort((a, b) => b.value - a.value),
+  });
 
   const nActive = drawable.length;
   // Count the split over the VISIBLE window, not over the whole series.
@@ -1067,6 +1011,116 @@ function renderChart(win){
     `${win.times.length} readings · ${nActive} of ${win.series.length} ` +
     `stations${origin} · arrow keys or mouse for values · gaps over 2 h ` +
     `are not interpolated`;
+}
+
+/* ------------------------------------------------------------- Crosshair -- */
+/* One hover layer for all three charts. Written once because it was already
+   duplicated twice and the copies had started to drift — only the series
+   chart had keyboard support, and the daily cycle had no hover layer at all.
+
+   The caller supplies the domain keys, how to place one on the x axis, and
+   how to turn one into tooltip rows. Everything else — hit area, snapping,
+   dots, tooltip placement, keyboard, the accessible readout — lives here. */
+function attachCrosshair(o){
+  const {svg: sv, wrap, tip, desc, x0, x1, y0, y1, W, keys, X, rowsFor,
+         header, unit = "\u00b5g/m\u00b3"} = o;
+  if (!keys.length) return;
+
+  const cross = svg("line", {class:"cross", y1:y0, y2:y1, x1:-99, x2:-99});
+  const dots  = svg("g", {});
+  sv.appendChild(cross); sv.appendChild(dots);
+  const hit = svg("rect", {x:x0, y:y0, width:Math.max(1, x1-x0),
+    height:Math.max(1, y1-y0), fill:"transparent", style:"cursor:crosshair"});
+  sv.appendChild(hit);
+
+  let idx = null;
+  // The description doubles as the screen-reader fallback when nothing is
+  // focused, so restore it on leave instead of leaving the last hovered
+  // point standing as if it were the whole chart.
+  const baseDesc = desc ? desc.textContent : "";
+
+  const nearest = (clientX) => {
+    const box = sv.getBoundingClientRect();
+    const px = (clientX - box.left) / box.width * W;
+    let best = 0, bd = Infinity;
+    keys.forEach((k, i) => {
+      const d = Math.abs(X(k) - px);
+      if (d < bd){ bd = d; best = i; }
+    });
+    return best;
+  };
+
+  const clear = () => {
+    idx = null;
+    cross.setAttribute("x1", -99); cross.setAttribute("x2", -99);
+    dots.textContent = "";
+    if (tip) tip.classList.remove("on");
+    if (desc) desc.textContent = baseDesc;
+  };
+
+  const focusAt = (i) => {
+    if (i < 0 || i >= keys.length) return;
+    idx = i;
+    const key = keys[i];
+    const px = X(key);
+    cross.setAttribute("x1", px); cross.setAttribute("x2", px);
+    dots.textContent = "";
+
+    const rows = rowsFor(key) || [];
+    for (const r of rows){
+      if (r.y === null || r.y === undefined) continue;
+      dots.appendChild(svg("circle", {cx:px, cy:r.y, r:4.5,
+        fill:r.color, class:"focusdot"}));
+    }
+    if (!tip) return;
+
+    tip.textContent = "";
+    tip.appendChild(el("div", {class:"th", text: header(key)}));
+    for (const r of rows){
+      const row = el("div", {class:"r"});
+      row.appendChild(el("span", {class:"k", style:`background:${r.color}`,
+        "aria-hidden":"true"}));
+      row.appendChild(el("span", {class:"v", text: r.text ?? String(r.value)}));
+      row.appendChild(el("span", {class:"n", text: r.label}));
+      tip.appendChild(row);
+    }
+    if (o.footer){
+      const f = o.footer(key, rows);
+      if (f) tip.appendChild(el("div", {class:"th", style:"margin:5px 0 0", text:f}));
+    }
+    tip.classList.add("on");
+
+    const tw = tip.offsetWidth || 180;
+    const scale = (sv.getBoundingClientRect().width || W) / W;
+    let left = px * scale + 36;
+    if (left + tw > wrap.clientWidth - 8) left = px * scale - tw - 18;
+    tip.style.left = Math.max(8, left) + "px";
+    tip.style.top = (y0 + 6) + "px";
+
+    if (desc){
+      desc.textContent = header(key) + ": " +
+        rows.map(r => `${r.label} ${r.text ?? r.value} ${unit}`).join(", ");
+    }
+  };
+
+  hit.addEventListener("pointermove", (e) => focusAt(nearest(e.clientX)));
+  hit.addEventListener("pointerleave", clear);
+
+  // Keyboard gives the same readout as hover — a tooltip must never be the
+  // only way to a value.
+  sv.setAttribute("tabindex", "0");
+  sv.onkeydown = (e) => {
+    let i = idx === null ? keys.length - 1 : idx;
+    if (e.key === "ArrowRight") i = Math.min(keys.length-1, i+1);
+    else if (e.key === "ArrowLeft") i = Math.max(0, i-1);
+    else if (e.key === "Home") i = 0;
+    else if (e.key === "End") i = keys.length-1;
+    else if (e.key === "Escape"){ clear(); return; }
+    else return;
+    e.preventDefault(); focusAt(i);
+  };
+  sv.onblur = clear;
+  return {focusAt, clear};
 }
 
 /* ----------------------------------------------------------------- Legend -- */
@@ -1242,6 +1296,31 @@ function renderProfile(d){
     return `${st.short}: ${v}`;
   }).join(" — ");
 
+  // The hover layer was missing here while the other two charts had it —
+  // an SVG chart is interactive, and a median is exactly the kind of number
+  // a reader wants to read off rather than estimate.
+  const shownStations = (useArc ? arcs : d.stations).filter(st => !state.hidden.has(st.id));
+  attachCrosshair({
+    svg: s, wrap, tip: $("prTip"), desc: $("prDesc"),
+    x0, x1, y0, y1, W,
+    keys: Array.from({length: 24}, (_v, h) => h), X,
+    header: (h) => `${pad2(h)}:00–${pad2((h+1) % 24)}:00 · median`,
+    rowsFor: (h) => shownStations
+      .map(st => ({st, v: (med[st.id] || [])[h],
+                   lo: single ? ((band[st.id] || {}).lo || [])[h] : null,
+                   hi: single ? ((band[st.id] || {}).hi || [])[h] : null}))
+      .filter(r => r.v !== null && r.v !== undefined)
+      .map(r => ({
+        label: r.st.short, color: colorOf(r.st.slot),
+        value: Math.round(r.v),
+        text: String(Math.round(r.v)) +
+              (r.lo != null && r.hi != null
+                 ? ` (${Math.round(r.lo)}–${Math.round(r.hi)})` : ""),
+        y: Y(r.v)}))
+      .sort((a, b) => b.value - a.value),
+    footer: () => single ? "value (25th–75th percentile)" : null,
+  });
+
   const lg = $("prLegend"); lg.textContent = "";
   for (const st of (useArc ? arcs : d.stations)){
     if (state.hidden.has(st.id)) continue;
@@ -1407,62 +1486,21 @@ function renderYearly(d){
       text:`${e.label} ${e.v}`}));
   }
 
-  // Crosshair identical to the series chart.
-  const cross = svg("line", {class:"cross", y1:y0, y2:y1, x1:-99, x2:-99});
-  const dots = svg("g", {});
-  sv.appendChild(cross); sv.appendChild(dots);
-  const hit = svg("rect", {x:x0, y:y0, width:x1-x0, height:y1-y0,
-    fill:"transparent", style:"cursor:crosshair"});
-  sv.appendChild(hit);
-  const tip = $("yrTip");
-  const focusYear = (yr) => {
-    const px = X(yr);
-    cross.setAttribute("x1", px); cross.setAttribute("x2", px);
-    dots.textContent = ""; tip.textContent = "";
-    tip.appendChild(el("div", {class:"th", text:`${yr} · ${M.label}`}));
-    const rows = [];
-    for (const st of visible){
-      const rec = (st.yearly || {})[String(yr)];
-      const v = rec ? rec[key] : null;
-      if (v === null || v === undefined) continue;
-      dots.appendChild(svg("circle", {cx:px, cy:Y(v), r:4.5,
-        fill:colorOf(st.slot), class:"focusdot"}));
-      rows.push({st, v, partial: !!rec.partial});
-    }
-    rows.sort((a,b) => b.v - a.v);
-    for (const r of rows){
-      const row = el("div", {class:"r"});
-      row.appendChild(el("span", {class:"k",
-        style:`background:${colorOf(r.st.slot)}`, "aria-hidden":"true"}));
-      row.appendChild(el("span", {class:"v",
-        text: String(r.v) + (r.partial ? "*" : "")}));
-      row.appendChild(el("span", {class:"n", text:r.st.short}));
-      tip.appendChild(row);
-    }
-    if (rows.some(r => r.partial)){
-      tip.appendChild(el("div", {class:"th",
-        style:"margin:5px 0 0", text:"* year not finished"}));
-    }
-    tip.classList.add("on");
-    const scale = (sv.getBoundingClientRect().width || W) / W;
-    const tw = tip.offsetWidth || 180;
-    let left = px * scale + 18 + 18;
-    if (left + tw > wrap.clientWidth - 8) left = px * scale + 18 - tw - 18;
-    tip.style.left = Math.max(8, left) + "px";
-    tip.style.top = (PAD.t + 6) + "px";
-    $("yrDesc").textContent = `${yr}: ` +
-      rows.map(r => `${r.st.short} ${r.v} ${M.unit}`).join(", ");
-  };
-  const nearestYear = (clientX) => {
-    const box = sv.getBoundingClientRect();
-    const px = (clientX - box.left) / box.width * W;
-    return years.reduce((best, y) =>
-      Math.abs(X(y) - px) < Math.abs(X(best) - px) ? y : best, years[0]);
-  };
-  hit.addEventListener("pointermove", (e) => focusYear(nearestYear(e.clientX)));
-  hit.addEventListener("pointerleave", () => {
-    cross.setAttribute("x1", -99); cross.setAttribute("x2", -99);
-    dots.textContent = ""; tip.classList.remove("on");
+  attachCrosshair({
+    svg: sv, wrap, tip: $("yrTip"), desc: $("yrDesc"),
+    x0, x1, y0, y1, W,
+    keys: years, X, unit: M.unit,
+    header: (yr) => `${yr} · ${M.label}`,
+    rowsFor: (yr) => visible
+      .map(st => ({st, rec: (st.yearly || {})[String(yr)]}))
+      .filter(r => r.rec && r.rec[key] !== null && r.rec[key] !== undefined)
+      .map(r => ({label: r.st.short, color: colorOf(r.st.slot),
+                  value: r.rec[key],
+                  text: String(r.rec[key]) + (r.rec.partial ? "*" : ""),
+                  y: Y(r.rec[key]), partial: !!r.rec.partial}))
+      .sort((a, b) => b.value - a.value),
+    footer: (_yr, rows) =>
+      rows.some(r => r.partial) ? "* year not finished" : null,
   });
 
   const lg = $("yrLegend"); lg.textContent = "";
@@ -1591,7 +1629,6 @@ try{
 
 document.querySelectorAll("[data-range]").forEach(b => b.onclick = () => {
   state.rangeH = Number(b.dataset.range);
-  state.focus = null;
   document.querySelectorAll("[data-range]").forEach(o =>
     o.setAttribute("aria-pressed", String(o === b)));
   if (state.data) render();

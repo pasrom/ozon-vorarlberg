@@ -450,13 +450,22 @@ reading `data.json`. The dashboard says so explicitly instead of staying blank.
 - **Daily cycle** — median per hour from five years of season data
   (April–September). Selecting a single station in the legend shows its
   25th–75th percentile band; with four stations at once four bands would be
-  mush. Without the archive the card falls back to the locally logged days.
+  mush. Hovering reads off the median for that hour, and with a single station
+  selected the tooltip adds its 25th–75th range. Without the archive the card
+  falls back to the locally logged days.
 - **Annual series** — since 1988, switchable between peak-season mean, days
   above the EU target and highest 1-hour value. Three metrics with two units,
   hence a switch and always only **one** y-axis — never two scales in one plot.
 - **Table view** — the same numbers without colour coding.
 - **Pattern** — switches the lines to distinguishable dash patterns, for colour
   vision deficiency, print and black and white.
+
+All three charts share one hover layer (`attachCrosshair`): a crosshair that
+snaps to the nearest position, one tooltip listing every series at that point,
+and the same readout on keyboard focus with the arrow keys. It was written once
+because it had already been copied twice and the copies had drifted — only the
+series chart had keyboard support, and the daily cycle had no hover layer at
+all until someone tried to read a value off it.
 
 Auto-refresh every 5 minutes. While reloading, the previous render is held at
 reduced opacity — no skeleton flash, no layout jump.
