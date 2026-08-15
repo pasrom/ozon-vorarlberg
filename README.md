@@ -44,10 +44,33 @@ The dashboard reads the `data` branch at runtime via
 still works offline. That keeps the two apart: the logger pushes three times an
 hour without ever touching the site or triggering a Pages rebuild.
 
-The `data` branch is force-pushed as a single orphan commit. At this cadence a
-real commit history would mean ~72 commits per day and roughly half a gigabyte
-of git objects per year — for numbers the EEA archives permanently anyway. The
-irreplaceable part of the record lives upstream, not here.
+The `data` branch keeps a **real commit history**, one commit per hourly
+reading. Only genuinely new readings are committed: the source updates hourly
+while the job runs three times an hour, so two of three runs would otherwise
+produce a commit in which nothing but the fetch timestamp changed. That lands
+at roughly 24 commits per day.
+
+An earlier version force-pushed a single orphan commit instead, justified with
+an estimate of "roughly half a gigabyte of git objects per year". **That
+estimate was wrong by a factor of eleven.** Measured with realistic changes
+(time axis advancing, all values jittering, `archive.json` rewritten daily),
+the marginal cost settles at ~1.8 KB per commit:
+
+| Commits | Days | `.git` | Marginal | Extrapolated |
+|---|---|---|---|---|
+| 216 | 3 | 492 KB | — | — |
+| 432 | 6 | 940 KB | 2.07 KB | 53 MB/year |
+| 720 | 10 | 1.4 MB | 1.76 KB | 45 MB/year |
+| 1080 | 15 | 2.1 MB | 1.80 KB | **46 MB/year** |
+
+Git delta-compresses shifting JSON far better than assumed. At 46 MB/year the
+size argument does not hold, and the history is worth having: it records what
+the page actually showed at any point in time. That is not the same as the
+measurements — those live at the EEA — and it cannot be reconstructed from
+anywhere else if the source emits nonsense or the scraper has a bug.
+
+Deployment uses a shallow clone (`--depth 1`), so every run stays equally cheap
+no matter how long the history grows.
 
 ## Where the history comes from
 

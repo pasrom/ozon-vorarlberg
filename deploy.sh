@@ -16,9 +16,21 @@
 # That keeps the two apart: the logger pushes three times an hour without ever
 # touching the site or triggering a Pages rebuild.
 #
-# The data branch is force-pushed as a single orphan commit. At this cadence a
-# real history would mean ~72 commits per day and roughly half a gigabyte of
-# git objects per year — for numbers that the EEA archives permanently anyway.
+# The data branch keeps a real commit history, one commit per hourly reading.
+# An earlier version force-pushed a single orphan commit, justified with an
+# estimate of "roughly half a gigabyte of git objects per year". That estimate
+# was wrong by a factor of eleven: measured with realistic changes, the
+# marginal cost settles at ~1.8 KB per commit, i.e. about 46 MB per year. Git
+# delta-compresses shifting JSON far better than assumed.
+#
+# The history is worth having: it records what the page actually showed at any
+# point in time. That is not the same as the measurements — those live at the
+# EEA — and it cannot be reconstructed from anywhere else if the source ever
+# emits nonsense or the scraper has a bug.
+#
+# Only genuinely new readings are committed. The source updates hourly while
+# this job runs three times an hour, so two of three runs would otherwise
+# produce a commit in which nothing but the fetch timestamp changed.
 #
 # Why the local log has to carry the whole 72 h window: the EEA archive is
 # rewritten only about ONCE PER DAY (measured from the blob's Last-Modified).
@@ -121,20 +133,61 @@ case "$REMOTE" in
         ;;
 esac
 
+# Shallow clone: the history grows by design, and a full fetch would get
+# slower every day for no benefit. --depth 1 keeps every run equally cheap.
 TMP=$(mktemp -d)
-git -C "$TMP" init -q
-git -C "$TMP" remote add origin "$REMOTE"
-git -C "$TMP" checkout -q --orphan "$BRANCH"
+if ! git clone -q --depth 1 --branch "$BRANCH" "$REMOTE" "$TMP" 2>>"$LOG"; then
+    # Branch does not exist yet: start it.
+    log "branch $BRANCH not found, creating it"
+    git -C "$TMP" init -q
+    git -C "$TMP" remote add origin "$REMOTE"
+    git -C "$TMP" checkout -q -b "$BRANCH"
+fi
+
+# Is this actually a new reading? The source updates hourly while this job
+# runs three times an hour. Without this check two of three runs would commit
+# nothing but a changed fetch timestamp.
+SRC_NEW=$("$PY" -c 'import json,sys;print(json.load(open(sys.argv[1])).get("source_time") or "")' \
+          "$SITE_DIR/data.json" 2>/dev/null || echo "")
+SRC_OLD=$("$PY" -c 'import json,sys;print(json.load(open(sys.argv[1])).get("source_time") or "")' \
+          "$TMP/data.json" 2>/dev/null || echo "")
+
 cp -R "$SITE_DIR"/. "$TMP"/
 git -C "$TMP" add -A
+
+ARCHIVE_CHANGED=0
+git -C "$TMP" diff --cached --quiet -- archive.json || ARCHIVE_CHANGED=1
+
+if [ -n "$SRC_OLD" ] && [ "$SRC_NEW" = "$SRC_OLD" ] && [ "$ARCHIVE_CHANGED" = "0" ]; then
+    date -u +%s > "$STATE_DIR/heartbeat"
+    log "source unchanged ($SRC_NEW), nothing to commit"
+    exit 0
+fi
+
+if git -C "$TMP" diff --cached --quiet; then
+    date -u +%s > "$STATE_DIR/heartbeat"
+    log "no change, nothing to commit"
+    exit 0
+fi
+
 git -C "$TMP" \
     -c user.name="ozon-vorarlberg deploy" \
     -c user.email="deploy@localhost" \
-    commit -q -m "data as of $(date '+%Y-%m-%d %H:%M %Z')"
+    commit -q -m "data ${SRC_NEW:-$(date '+%Y-%m-%d %H:%M')}"
 
-if ! git -C "$TMP" push -q --force origin "$BRANCH" 2>>"$LOG"; then
-    fail "push failed — deploy key without write access? (see $LOG)"
+# One retry: should a push ever be rejected as non-fast-forward, refetch and
+# replay on top rather than reaching for --force.
+if ! git -C "$TMP" push -q origin "$BRANCH" 2>>"$LOG"; then
+    log "push rejected, refetching and retrying once"
+    git -C "$TMP" fetch -q --depth 1 origin "$BRANCH" 2>>"$LOG" || true
+    git -C "$TMP" reset -q --soft FETCH_HEAD 2>>"$LOG" || true
+    git -C "$TMP" \
+        -c user.name="ozon-vorarlberg deploy" \
+        -c user.email="deploy@localhost" \
+        commit -q -m "data ${SRC_NEW:-$(date '+%Y-%m-%d %H:%M')}" 2>>"$LOG" || true
+    git -C "$TMP" push -q origin "$BRANCH" 2>>"$LOG" \
+        || fail "push failed — deploy key without write access? (see $LOG)"
 fi
 
 date -u +%s > "$STATE_DIR/heartbeat"
-log "data branch updated"
+log "data branch updated ($SRC_NEW)"
