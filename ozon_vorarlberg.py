@@ -403,7 +403,10 @@ def trend_for(series: list[Optional[int]], flat_band: int = 5) -> dict:
     vals = [v for v in series if v is not None]
     if len(vals) < 2:
         return {"dir": "unknown", "delta": None, "arrow": "–"}
-    delta = vals[-1] - vals[-2]
+    # Round: since the series is merged with the archive it carries unrounded
+    # floats, and the raw difference produced display noise like
+    # "+18.700000000000003".
+    delta = round(vals[-1] - vals[-2], 1)
     if abs(delta) < flat_band:
         return {"dir": "flat", "delta": delta, "arrow": "▬"}
     if delta > 0:

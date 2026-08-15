@@ -709,15 +709,15 @@ function renderTiles(d){
     tile.appendChild(statusChip(t.status || "unknown", t.word || "–"));
 
     const meta = el("div", {class:"meta"});
-    meta.appendChild(el("span", {}, "8-h-Max ",
+    meta.appendChild(el("span", {}, "8-h max ",
       el("b", {text: fmt(s.max_8h)})));
     meta.appendChild(el("span", {style:"text-align:right", text: day.label || ""}));
     tile.appendChild(meta);
 
     const meta2 = el("div", {class:"meta", style:"border-top:0;padding-top:2px"});
-    meta2.appendChild(el("span", {}, "1-h-Max heute ",
+    meta2.appendChild(el("span", {}, "1-h max today ",
       el("b", {text: fmt(s.max_1h)})));
-    meta2.appendChild(el("span", {}, "Vortag ",
+    meta2.appendChild(el("span", {}, "prev. day ",
       el("b", {text: fmt(s.prev_max_8h)})));
     tile.appendChild(meta2);
 
@@ -726,9 +726,9 @@ function renderTiles(d){
         ac.context.percentile !== undefined){
       const c = ac.context;
       const m3 = el("div", {class:"meta", style:"border-top:0;padding-top:2px"});
-      m3.appendChild(el("span", {}, "Langzeit ",
-        el("b", {text: c.percentile + ". Perz."})));
-      m3.appendChild(el("span", {text: `Median ${c.median}`}));
+      m3.appendChild(el("span", {}, "long-term ",
+        el("b", {text: c.percentile + "th pct."})));
+      m3.appendChild(el("span", {text: `median ${c.median}`}));
       tile.appendChild(m3);
     }
 
@@ -859,8 +859,8 @@ function renderChart(win){
   // otherwise they compete with the series colours.
   const thr = state.data.thresholds || {};
   for (const [v, lab] of [[thr.who_short_8h||100, "WHO 100"],
-                          [thr.eu_target_8h||120, "EU-Ziel 120"],
-                          [thr.at_info_1h||180, "Infoschwelle 180"]]){
+                          [thr.eu_target_8h||120, "EU target 120"],
+                          [thr.at_info_1h||180, "Info threshold 180"]]){
     if (v > yMax) continue;
     s.appendChild(svg("line", {class:"thr", x1:x0, x2:x1, y1:Y(v), y2:Y(v)}));
     thrLabel(s, x0 + 5, Y(v) - 4, lab);
@@ -936,8 +936,13 @@ function renderChart(win){
     for (let i = win.times.length-1; i >= 0; i--){
       if (ser.vals[i] !== null && ser.vals[i] !== undefined){ li = i; break; }
     }
-    if (li >= 0) ends.push({ser, x:X(win.times[li]), y:Y(ser.vals[li]),
-                            v:ser.vals[li]});
+    // Round for display only: archive values are unrounded, the source page
+    // shows whole numbers. The plot keeps the exact value.
+    // y0 keeps the exact plot position; v is rounded for the label only,
+    // because archive values are unrounded while the source shows integers.
+    if (li >= 0) ends.push({ser, x:X(win.times[li]),
+                            y0:Y(ser.vals[li]), y:Y(ser.vals[li]),
+                            v:Math.round(ser.vals[li])});
   }
 
   // Direct labels at the line ends. Secondary encoding next to colour, and
@@ -947,11 +952,11 @@ function renderChart(win){
     if (ends[i].y - ends[i-1].y < LAB_GAP) ends[i].y = ends[i-1].y + LAB_GAP;
   }
   for (const e of ends){
-    s.appendChild(svg("circle", {cx:e.x, cy:Y(e.v), r:3.5,
+    s.appendChild(svg("circle", {cx:e.x, cy:e.y0, r:3.5,
       fill:colorOf(e.ser.slot), class:"focusdot"}));
     // Leader line when the label was nudged away from the line end.
-    if (Math.abs(e.y - Y(e.v)) > 2){
-      s.appendChild(svg("line", {x1:e.x+4, y1:Y(e.v), x2:x1+3, y2:e.y,
+    if (Math.abs(e.y - e.y0) > 2){
+      s.appendChild(svg("line", {x1:e.x+4, y1:e.y0, x2:x1+3, y2:e.y,
         stroke:colorOf(e.ser.slot), "stroke-width":1, opacity:.45}));
     }
     s.appendChild(svg("text", {class:"endlab", x:x1+6, y:e.y+4,
@@ -988,7 +993,7 @@ function renderChart(win){
       if (v === null || v === undefined) continue;
       dots.appendChild(svg("circle", {cx:px, cy:Y(v), r:4.5,
         fill:colorOf(ser.slot), class:"focusdot"}));
-      rows.push({ser, v});
+      rows.push({ser, v: Math.round(v)});
     }
     rows.sort((a,b) => b.v - a.v);
 
@@ -1148,8 +1153,8 @@ function renderProfile(d){
     style:"font-size:10.5px", text:"µg/m³"}));
   const thr = d.thresholds || {};
   for (const [v, lab] of [[thr.who_short_8h||100,"WHO 100"],
-                          [thr.eu_target_8h||120,"EU-Ziel 120"],
-                          [thr.at_info_1h||180,"Infoschwelle 180"]]){
+                          [thr.eu_target_8h||120,"EU target 120"],
+                          [thr.at_info_1h||180,"Info threshold 180"]]){
     if (v > yMax) continue;
     s.appendChild(svg("line", {class:"thr", x1:x0, x2:x1, y1:Y(v), y2:Y(v)}));
     thrLabel(s, x0 + 5, Y(v) - 4, lab);
@@ -1510,7 +1515,8 @@ function renderTables(d, win){
     const r = el("tr");
     r.appendChild(el("th", {scope:"row",
       text:`${dayMon(win.times[i])} ${hhmm(win.times[i])}`}));
-    for (const s of win.series) r.appendChild(el("td", {text: fmt(s.vals[i])}));
+    for (const s of win.series) r.appendChild(el("td", {
+      text: s.vals[i] == null ? "–" : String(Math.round(s.vals[i]))}));
     tb2.appendChild(r);
   }
   t2.appendChild(tb2);
