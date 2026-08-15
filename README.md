@@ -358,6 +358,27 @@ cd ~/git/ozon-vorarlberg && ./mini/install.sh
 deploy key, archive, test run — and prints the sudo block for the two daemons
 at the end.
 
+### Failure handling
+
+Deliberately asymmetric, because the two failure modes deserve opposite
+treatment:
+
+| Exit | Meaning | Reaction |
+|---|---|---|
+| 2 | page layout no longer matches | **alarm at once** — the numbers could be wrong |
+| 3 | source unreachable | stay quiet, count; alarm from the 3rd run in a row (~1 h) |
+
+`fetch()` retries three times with backoff first, so a single blip never even
+reaches the counter. The source is a small municipal server that drops out for
+short stretches — on 2026-08-15 it was unreachable at the TCP connect stage
+from two independent machines for several minutes. An alarm on every such
+occurrence turns the channel into noise, which is precisely what makes it
+useless on the day something real breaks.
+
+A gap left by an outage heals on its own: the EEA archive supplies those hours
+within a day. What does not heal is a silently misparsed page — hence the
+asymmetry.
+
 ### Why it is built this way
 
 - **`StartCalendarInterval`, not `StartInterval`.** If the machine was off at

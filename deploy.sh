@@ -104,11 +104,51 @@ trap cleanup EXIT
 # --- 1) fetch readings ------------------------------------------------------
 [ -x "$PY" ] || fail "python missing: $PY (run mini/install.sh)"
 
+# Failure handling is deliberately asymmetric:
+#
+#   exit 2  the page layout no longer matches — the numbers could be wrong.
+#           Urgent, alarm on the first occurrence.
+#   exit 3  the source could not be reached. A small municipal server drops
+#           out now and then; the next run picks the value back up and the
+#           gap heals from the EEA archive within a day. Only worth a message
+#           once it persists, otherwise the channel turns into noise — which
+#           is exactly what makes an alarm channel useless when it matters.
+#
+# Consecutive network failures are counted in the state directory.
+FAILS_FILE="$STATE_DIR/consecutive_fetch_failures"
+ALARM_AFTER=3        # ~1 hour of silence at three runs per hour
+
 log "fetching vorarlberg-luft.at"
-if ! "$PY" ozon_vorarlberg.py --log --strict --prune-history 4 \
-        --out data.json --quiet >>"$LOG" 2>&1; then
-    fail "scraper failed — source offline or layout changed (see $LOG)"
-fi
+set +e
+"$PY" ozon_vorarlberg.py --log --strict --prune-history 4 \
+    --out data.json --quiet >>"$LOG" 2>&1
+RC=$?
+set -e
+
+case "$RC" in
+    0) : ;;
+    2) rm -f "$FAILS_FILE"
+       fail "SOURCE LAYOUT CHANGED — numbers may be wrong, parser needs a look (see $LOG)"
+       ;;
+    3) N=$(( $(cat "$FAILS_FILE" 2>/dev/null || echo 0) + 1 ))
+       echo "$N" > "$FAILS_FILE"
+       if [ "$N" -ge "$ALARM_AFTER" ]; then
+           log "source unreachable, $N runs in a row"
+           # Only shout once per threshold crossing, not on every run after.
+           if [ "$N" = "$ALARM_AFTER" ]; then
+               alarm "source unreachable for $N runs (~$((N * 20)) min). Site keeps showing the last value."
+           fi
+       else
+           log "source unreachable ($N/$ALARM_AFTER) — staying quiet, the next run may well succeed"
+       fi
+       exit 0
+       ;;
+    *) rm -f "$FAILS_FILE"
+       fail "scraper failed with exit $RC (see $LOG)"
+       ;;
+esac
+
+rm -f "$FAILS_FILE"
 [ -s data.json ] || fail "data.json is empty"
 
 # --- 2) assemble the payload ------------------------------------------------

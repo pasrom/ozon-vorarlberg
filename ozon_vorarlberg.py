@@ -159,7 +159,19 @@ def _tz():
 
 
 class LayoutError(RuntimeError):
-    """The source page no longer looks the way we expect."""
+    """The source page no longer looks the way we expect.
+
+    Urgent: the numbers could be wrong. Exit code 2.
+    """
+
+
+class SourceUnavailable(RuntimeError):
+    """The source could not be reached at all.
+
+    Not urgent on its own — a small municipal server drops out now and then,
+    and the next run picks the value back up. Exit code 3, so the caller can
+    tell a network blip apart from a broken parser.
+    """
 
 
 @dataclass
@@ -328,7 +340,8 @@ def _check_layout(page: Page) -> None:
         raise LayoutError("unexpected source page layout: " + "; ".join(problems))
 
 
-def fetch(url: str = URL, timeout: int = 20) -> str:
+def fetch(url: str = URL, timeout: int = 20, attempts: int = 3,
+          backoff: float = 2.0) -> str:
     """Fetch the page and decode it correctly.
 
     The page declares iso-8859-1 and sticks to it. Guessing via
@@ -352,8 +365,24 @@ def fetch(url: str = URL, timeout: int = 20) -> str:
         "User-Agent": "ozon-vorarlberg/2.0 (personal, hourly)",
         "Accept": "text/html,application/xhtml+xml",
     }
-    resp = requests.get(url, headers=headers, timeout=timeout)
-    resp.raise_for_status()
+
+    # Retry briefly. The source is a small municipal server and drops out for
+    # short stretches; a single timeout is not news. Longer outages are caught
+    # by the caller, which counts consecutive failures rather than shouting on
+    # the first one.
+    last = None
+    for attempt in range(attempts):
+        try:
+            resp = requests.get(url, headers=headers, timeout=timeout)
+            resp.raise_for_status()
+            break
+        except requests.RequestException as exc:
+            last = exc
+            if attempt + 1 < attempts:
+                time.sleep(backoff * (2 ** attempt))
+    else:
+        raise SourceUnavailable(f"{url} unreachable after {attempts} attempts: "
+                                f"{type(last).__name__}") from last
     raw = resp.content
     m = re.search(br'charset=["\']?([\w-]+)', raw[:2048], re.I)
     enc = m.group(1).decode("ascii", "ignore") if m else "iso-8859-1"
@@ -985,7 +1014,11 @@ def main(argv: Optional[list[str]] = None) -> int:
                 except (UnicodeDecodeError, ValueError):
                     pass
             else:
-                html = fetch(args.url)
+                try:
+                    html = fetch(args.url)
+                except SourceUnavailable as exc:
+                    print(f"SOURCE UNAVAILABLE: {exc}", file=sys.stderr)
+                    return 3
 
             try:
                 page = parse_html(html, strict=args.strict)
