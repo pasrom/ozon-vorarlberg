@@ -353,12 +353,16 @@ Archiv, Testlauf — und gibt am Ende den sudo-Block für die beiden Daemons aus
 ### Bedienung
 
 ```
-launchctl list | grep io.ebs.agent.ozon              # Status
-sudo launchctl kickstart -k system/io.ebs.agent.ozon # sofort feuern
-tail -f ~/agents/logs/ozon/$(date +%F).log           # mitlesen
-date -r $(cat ~/agents/state/ozon/heartbeat)         # letzter Erfolg
+# Status. `launchctl list` ohne sudo zeigt nur die User-Domain und findet
+# System-Daemons NICHT — dann wirkt es faelschlich so, als waeren sie weg.
+launchctl print system/io.ebs.agent.ozon | grep -E "state|runs|last exit"
+sudo launchctl list | grep io.ebs.agent.ozon
 
-sudo launchctl bootout system/io.ebs.agent.ozon      # anhalten
+sudo launchctl kickstart -k system/io.ebs.agent.ozon  # sofort feuern
+tail -f ~agent/agents/logs/ozon/$(date +%F).log       # mitlesen
+date -r $(cat ~agent/agents/state/ozon/heartbeat)     # letzter Erfolg
+
+sudo launchctl bootout system/io.ebs.agent.ozon       # anhalten
 ```
 
 ## Dashboard
