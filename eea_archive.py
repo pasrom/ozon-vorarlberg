@@ -1,51 +1,50 @@
 #!/usr/bin/env python3
 """
-eea_archive.py — 23 Jahre Ozon-Stundenwerte fuer die vier Vorarlberger
-Stationen aus dem EEA-Archiv holen und zu Kennzahlen verdichten.
+eea_archive.py — fetch up to 39 years of hourly ozone readings for the four
+Vorarlberg stations from the EEA archive and condense them into metrics.
 
-Warum es das gibt
------------------
-vorarlberg-luft.at veroeffentlicht keinen Zahlen-Verlauf (die verlinkten
-"Grafischer Verlauf"-Seiten sind JPEGs), und der Umweltbundesamt-Zeitverlauf
-unter luft.umweltbundesamt.at/pub/map_chart/index.pl rendert ebenfalls nur PNGs.
-Die EEA dagegen legt dieselben Messwerte als Parquet in oeffentlich lesbaren
-Azure-Blob-Containern ab — ohne API-Key.
+Why this exists
+---------------
+vorarlberg-luft.at publishes no numeric series (the linked "graphical course"
+pages are JPEGs), and the Umweltbundesamt time-series tool at
+luft.umweltbundesamt.at/pub/map_chart/index.pl renders nothing but PNGs
+either. The EEA, by contrast, stores the very same measurements as Parquet in
+publicly readable Azure blob containers — no API key.
 
-    airquality-p          E2a, ungeprueft   2025-01-01 .. heute minus 1-25 h
-    airquality-p-e1a      E1a, geprueft     2013-01-01 .. 2024-12-31
-    airquality-p-airbase  AIRBASE           ab 1988 (Lustenau) .. 2012-12-31
+    airquality-p          E2a, unverified   2025-01-01 .. now minus 1-25 h
+    airquality-p-e1a      E1a, verified     2013-01-01 .. 2024-12-31
+    airquality-p-airbase  AIRBASE           from 1988 (Lustenau) .. 2012-12-31
 
-Zusammen also 1988 bis heute, stuendlich — je Station unterschiedlich lang:
-Lustenau ab 1988-01, Sulzberg ab 1989-05, Wald am Arlberg ab 2003-01, Bludenz
-ab 2004-01. Verifiziert: die Tagesmaxima aus
-diesen Dateien stimmen fuer alle vier Stationen exakt mit den Vortagswerten
-ueberein, die vorarlberg-luft.at ausgibt.
+Together that is 1988 to today, hourly — different lengths per station:
+Lustenau from 1988-01, Sulzberg from 1989-05, Wald am Arlberg from 2003-01,
+Bludenz from 2004-01. Verified: the daily maxima computed from these files
+match the previous-day values published by vorarlberg-luft.at exactly, for all
+four stations.
 
-Zeitzone und Beschriftung — der wichtigste Fallstrick
------------------------------------------------------
-Die Spalte "Start" ist zeitzonenlos und steht in UTC. Sie bezeichnet den
-BEGINN der gemittelten Stunde. Die Landesseite dagegen beschriftet ihre Werte
-nach dem ENDE der Stunde und in Lokalzeit: der auf der Seite mit "13:00"
-ausgewiesene Wert steckt im EEA-Datensatz unter Start 10:00 (= 12:00 MESZ,
-Fenster 12-13 Uhr lokal).
+Timezone and labelling — the pitfall that matters most
+------------------------------------------------------
+The "Start" column is timezone-naive and holds UTC. It marks the BEGINNING of
+the averaged hour. The regional page, by contrast, labels its values by the
+END of the hour and in local time: the value shown there as "13:00" sits in
+the EEA data under Start 10:00 (= 12:00 CEST, window 12-13 local).
 
-Belegt an 11 Stundenwerten aus vier Stationen, alle exakt. Wer hier eine
-Stunde falsch liegt, verschiebt den ganzen Tagesgang und damit das empfohlene
-Trainingsfenster.
+Established against 11 hourly values across four stations, all exact. Being
+one hour off here shifts the entire daily cycle, and with it the recommended
+training window.
 
-Der Tagesgang in diesem Modul ist nach dem Fenster-START in Lokalzeit
-beschriftet: "06 Uhr" heisst die Stunde 06:00-07:00. Das ist die Lesart, die
-ein Trainingsfenster braucht ("um 06:00 rausgehen").
+The daily cycle in this module is labelled by the window START in local time:
+"06" means the hour 06:00-07:00. That is the reading a training window needs
+("head out at 06:00").
 
-Tageskennzahlen (Tagesmaxima, Ueberschreitungstage) werden dagegen in fester
-MEZ aggregiert — so macht es die Quelle. Siehe AGG_TZ.
+Daily metrics (daily maxima, exceedance days) are aggregated in fixed CET
+instead — that is what the source does. See AGG_TZ.
 
-Aufrufe
--------
-    python3 eea_archive.py --build              # laden, cachen, archive.json
-    python3 eea_archive.py --build --since 2013 # nur ab 2013
-    python3 eea_archive.py --stats              # Kennzahlen aus dem Cache
-    python3 eea_archive.py --coverage           # Abdeckung pro Station/Jahr
+Usage
+-----
+    python3 eea_archive.py --build              # fetch, cache, archive.json
+    python3 eea_archive.py --build --since 2013 # only from 2013
+    python3 eea_archive.py --stats              # metrics from the cache
+    python3 eea_archive.py --coverage           # coverage per station/year
 """
 
 from __future__ import annotations
@@ -73,24 +72,24 @@ from ozon_vorarlberg import (
 
 BLOB = "https://eeadmz1batchservice02.blob.core.windows.net"
 
-# Die EEA-Spalte "Start" ist zeitzonenlos und steht in UTC. Belegt gegen die
-# offizielle Landesseite: 11 von 11 Stundenwerten treffen exakt (siehe
-# test_eea_archive.TestAgainstOfficialSource). Eine frueher hier stehende
-# Annahme "feste MEZ" war um eine Stunde falsch — sie stammte aus einer
-# Phasenkorrelation gegen Modelldaten, die zwischen 0 und -1 h kaum trennt
-# (r 0,87 gegen 0,86). Exakte Integer-Treffer schlagen Korrelation.
+# The EEA "Start" column is timezone-naive and holds UTC. Established against
+# the official regional page: 11 of 11 hourly values match exactly (see
+# test_eea_archive.TestAgainstOfficialSource). An earlier assumption of "fixed
+# CET" was one hour off — it came from a phase correlation against model data
+# that barely separates 0 from -1 h (r 0.87 vs 0.86). Exact integer hits beat
+# correlation.
 EEA_TZ = timezone.utc
 
-# Tagesgrenze der Aggregation. Die oesterreichische Immissionsdatenbank
-# aggregiert Tageskennzahlen in FESTER MEZ (UTC+1, ohne Sommerzeit) und zeigt
-# die Einzelwerte in Lokalzeit an. Mit der Tagesgrenze in MESZ gerechnet
-# stimmten die Tagesmaxima des 8h-Mittels reproduzierbar nicht (3 von 8), mit
-# fester MEZ stimmen alle 8 von 8 Referenzwerten exakt.
+# Day boundary for aggregation. The Austrian immission database aggregates
+# daily metrics in FIXED CET (UTC+1, no daylight saving) while displaying the
+# individual values in local time. Computed with the day boundary in CEST the
+# daily maxima of the 8h mean were reproducibly wrong (3 of 8); with fixed CET
+# all 8 of 8 reference values match exactly.
 AGG_TZ = timezone(timedelta(hours=1))
 
-# EEA-Messpunkt je Station. Der Code ist zweiteilig: 08 ist das Netz
-# (Vorarlberg im Immissionsdatenverbund), die zweite Zahl die Stations-ID.
-# Dieselbe Nummer taucht im IDV als station_info('08','0503') auf.
+# EEA sampling point per station. The code has two parts: 08 is the network
+# (Vorarlberg in the Austrian immission data network), the second number is
+# the station ID. The same number appears there as station_info('08','0503').
 SAMPLING_POINT = {
     "ATVA002": "SPO.08.0706.983.7.1",     # Lustenau Wiesenrain   (IDV 08/0706)
     "ATVA007": "SPO.08.2708.5527.7.1",    # Bludenz Herrengasse   (IDV 08/2708)
@@ -98,33 +97,33 @@ SAMPLING_POINT = {
     "ATVA008": "SPO.08.0503.3670.7.1",    # Sulzberg Gmeind       (IDV 08/0503)
 }
 
-# (Container, erstes Jahr, letztes Jahr) — aufsteigend. Spaetere Container
-# gewinnen bei Ueberlappung, weil sie die aktuelleren Daten tragen.
-# Der airbase-Container reicht viel weiter zurueck als zunaechst angenommen:
-# Lustenau ab 1988-01, Sulzberg ab 1989-05, Wald am Arlberg ab 2003, Bludenz ab
-# 2004. Deshalb wird hier nicht mehr auf 2003 beschnitten — die Jahresangaben
-# dienen nur noch dazu, unnoetige Downloads zu ueberspringen.
+# (container, first year, last year) — ascending. Later containers win on
+# overlap because they carry the more current data.
+# The airbase container reaches much further back than first assumed: Lustenau
+# from 1988-01, Sulzberg from 1989-05, Wald am Arlberg from 2003, Bludenz from
+# 2004. That is why nothing is clipped to 2003 any more — the year bounds now
+# only serve to skip unnecessary downloads.
 DATASETS = [
     ("airquality-p-airbase", 1988, 2012, "airbase"),
     ("airquality-p-e1a", 2013, 2024, "e1a"),
     ("airquality-p", 2025, 9999, "e2a"),
 ]
 
-FIRST_YEAR = 1988      # frueheste Daten ueberhaupt (Lustenau)
+FIRST_YEAR = 1988      # earliest data of all (Lustenau)
 
 CACHE = Path("cache/eea")
 ARCHIVE_JSON = Path("archive.json")
 
-# Ozonsaison. Der Tagesgang ausserhalb ist ein anderes Regime und wuerde das
-# Trainingsfenster verwaessern.
+# Ozone season. The daily cycle outside it is a different regime and would
+# water down the training window.
 SEASON_MONTHS = (4, 5, 6, 7, 8, 9)
-PROFILE_YEARS = 5          # Tagesgang nur aus den letzten N Jahren
-RECENT_DAYS = 21           # so viele Tage Stundenwerte wandern ins archive.json
-EIGHT_H_MIN_VALID = 6      # von 8 Stunden muessen so viele gueltig sein
+PROFILE_YEARS = 5          # daily cycle from the last N years only
+RECENT_DAYS = 21           # this many days of hourly values go into archive.json
+EIGHT_H_MIN_VALID = 6      # this many of 8 hours must be valid
 
 
 # ---------------------------------------------------------------------------
-# Laden
+# Fetching
 # ---------------------------------------------------------------------------
 
 
@@ -138,12 +137,12 @@ def cache_path(container: str, point: str) -> Path:
 
 def blob_last_modified(container: str, point: str,
                        timeout: int = 30) -> Optional[str]:
-    """Wann hat die EEA diese Datei zuletzt geschrieben?
+    """When did the EEA last write this file?
 
-    Der E2a-Container wird nur etwa einmal taeglich neu geschrieben. Damit
-    schwankt der Datenverzug zwischen rund 1 h direkt danach und rund 25 h
-    davor. Der Wert wird mitprotokolliert, damit der Rhythmus ueber die Tage
-    belegbar wird statt geschaetzt.
+    The E2a container is rewritten only about once per day. That makes the
+    data lag swing between roughly 1 h right afterwards and roughly 25 h just
+    before. The value is recorded so the cadence becomes evidence rather than
+    guesswork.
     """
     req = urllib.request.Request(blob_url(container, point), method="HEAD")
     req.add_header("User-Agent", "ozon-vorarlberg/2.0 (privat)")
@@ -156,7 +155,7 @@ def blob_last_modified(container: str, point: str,
 
 def download(container: str, point: str, refresh: bool = False,
              timeout: int = 180) -> Optional[Path]:
-    """Eine Parquet-Datei holen und cachen. None, wenn es sie nicht gibt."""
+    """Fetch one Parquet file and cache it. None if it does not exist."""
     p = cache_path(container, point)
     if p.exists() and not refresh:
         return p
@@ -178,15 +177,15 @@ def download(container: str, point: str, refresh: bool = False,
 
 
 def read_parquet(path: Path) -> list[tuple[datetime, float]]:
-    """(Zeit in Europe/Vienna, Wert) fuer alle gueltigen Stunden.
+    """(time in Europe/Vienna, value) for every valid hour.
 
-    Validity: 1..3 gueltig, -1 ungueltig, -99 nicht gemessen. Alles unter 1
-    fliegt raus — ein ungueltiger Wert ist schlimmer als eine Luecke.
+    Validity: 1..3 valid, -1 invalid, -99 not measured. Anything below 1 is
+    dropped — an invalid value is worse than a gap.
     """
     try:
         import pyarrow.parquet as pq
     except ImportError:
-        sys.exit("Fehlende Abhaengigkeit: pip install -r requirements.txt")
+        sys.exit("Missing dependency: pip install -r requirements.txt")
 
     t = pq.read_table(path, columns=["Start", "Value", "Validity"]).to_pydict()
     tz = _tz()
@@ -194,7 +193,7 @@ def read_parquet(path: Path) -> list[tuple[datetime, float]]:
     for s, v, val in zip(t["Start"], t["Value"], t["Validity"]):
         if v is None or val is None or int(val) < 1:
             continue
-        # Naiven Stempel als feste MEZ deuten, dann nach Lokalzeit drehen.
+        # Read the naive stamp as UTC, then turn it into local time.
         ts = s.replace(tzinfo=EEA_TZ).astimezone(tz) if s.tzinfo is None \
             else s.astimezone(tz)
         out.append((ts, float(v)))
@@ -203,7 +202,7 @@ def read_parquet(path: Path) -> list[tuple[datetime, float]]:
 
 def load_station(sid: str, since: int = FIRST_YEAR, refresh: bool = False,
                  quiet: bool = False) -> list[tuple[datetime, float]]:
-    """Alle Container einer Station laden und zu einer Reihe verschmelzen."""
+    """Load every container of a station and merge them into one series."""
     point = SAMPLING_POINT[sid]
     merged: dict[datetime, float] = {}
     for container, _y0, y1, _tag in DATASETS:
@@ -212,7 +211,7 @@ def load_station(sid: str, since: int = FIRST_YEAR, refresh: bool = False,
         p = download(container, point, refresh=refresh)
         if p is None:
             if not quiet:
-                print(f"  {sid} {container}: nicht vorhanden", file=sys.stderr)
+                print(f"  {sid} {container}: not present", file=sys.stderr)
             continue
         rows = read_parquet(p)
         kept = 0
@@ -222,27 +221,27 @@ def load_station(sid: str, since: int = FIRST_YEAR, refresh: bool = False,
             merged[ts] = v      # spaeterer Container gewinnt
             kept += 1
         if not quiet:
-            print(f"  {sid} {container:22} {kept:>7} Stunden", file=sys.stderr)
+            print(f"  {sid} {container:22} {kept:>7} hours", file=sys.stderr)
     return sorted(merged.items())
 
 
 # ---------------------------------------------------------------------------
-# Kennzahlen
+# Metrics
 # ---------------------------------------------------------------------------
 
 
 def rolling_8h(series: list[tuple[datetime, float]]) -> list[tuple[datetime, float]]:
-    """Gleitendes 8-h-Mittel, dem ENDE des Fensters zugeordnet (EU-Konvention).
+    """Running 8h mean, assigned to the END of the window (EU convention).
 
-    ``series`` ist mit dem Fenster-START jeder Stunde beschriftet (so liefert
-    es read_parquet). Der Stundenwert mit Start S deckt S..S+1 ab, ein
-    8-h-Fenster aus den Staenden S-7..S deckt also S-7..S+1 ab und endet bei
-    S+1 — nicht bei S. Genau diese eine Stunde fehlte hier zuerst, was das
-    Tagesmaximum reproduzierbar um rund 6 µg/m³ zu hoch machte: der Schnitt
-    durfte eine Nachmittagsstunde zu viel mitnehmen.
+    ``series`` is labelled by the window START of each hour (that is what
+    read_parquet returns). The hourly value with start S covers S..S+1, so an
+    8h window built from starts S-7..S covers S-7..S+1 and ends at S+1 — not
+    at S. Exactly this one hour was missing here at first, which made the
+    daily maximum reproducibly about 6 ug/m3 too high: the cut was allowed to
+    take one afternoon hour too many.
 
-    Verlangt eine echte Stundenkette: Luecken brechen das Fenster, statt es
-    ueber sie hinweg zu mitteln.
+    Requires a real chain of hours: gaps break the window rather than being
+    averaged across.
     """
     out = []
     n = len(series)
@@ -262,17 +261,18 @@ def rolling_8h(series: list[tuple[datetime, float]]) -> list[tuple[datetime, flo
 
 
 def day_of_hour(start_ts: datetime) -> date:
-    """Tag, dem ein Stundenwert zugeordnet wird (Stempel = Fensterstart)."""
+    """Day an hourly value is assigned to (stamp = window start)."""
     return start_ts.astimezone(AGG_TZ).date()
 
 
 def day_of_window(end_ts: datetime) -> date:
-    """Tag, dem ein 8-h-Fenster zugeordnet wird (Stempel = Fensterende).
+    """Day an 8h window is assigned to (stamp = window end).
 
-    Nach EU-Konvention gehoert ein Fenster zu dem Tag, an dem es ENDET, wobei
-    24:00 noch zum alten Tag zaehlt. Das erste Fenster eines Tages ist damit
-    das, welches am Vorabend beginnt und in der Nacht endet — es schleppt den
-    hohen Vorabend mit und ist an ruhigen Vormittagen oft das Tagesmaximum.
+    By EU convention a window belongs to the day on which it ENDS, with 24:00
+    still counting towards the old day. The first window of a day is therefore
+    the one starting the previous evening and ending during the night — it
+    drags the high evening along and is often the daily maximum on quiet
+    mornings.
     """
     return (end_ts.astimezone(AGG_TZ) - timedelta(seconds=1)).date()
 
@@ -288,17 +288,17 @@ def daily_max(pairs: Iterable[tuple[datetime, float]],
 
 
 def peak_season_mean(dmax8: dict[date, float], year: int) -> Optional[float]:
-    """WHO-Langfristkennzahl: Mittel der 8-h-Tagesmaxima ueber die sechs
-    zusammenhaengenden Monate mit dem hoechsten solchen Mittel."""
+    """WHO long-term metric: mean of the daily 8h maxima over the six
+    consecutive months with the highest such mean."""
     by_month: dict[int, list[float]] = defaultdict(list)
     for d, v in dmax8.items():
         if d.year == year:
             by_month[d.month].append(v)
     best = None
-    for start in range(1, 8):                      # Fenster Jan..Jul beginnend
+    for start in range(1, 8):                      # windows starting Jan..Jul
         months = range(start, start + 6)
         vals = [v for m in months for v in by_month.get(m, [])]
-        if len(vals) < 120:                        # zu duenn fuer die Kennzahl
+        if len(vals) < 120:                        # too thin for the metric
             continue
         m = sum(vals) / len(vals)
         if best is None or m > best[0]:
@@ -308,8 +308,8 @@ def peak_season_mean(dmax8: dict[date, float], year: int) -> Optional[float]:
 
 def yearly_stats(series: list[tuple[datetime, float]]) -> dict:
     s8 = rolling_8h(series)
-    dmax8 = daily_max(s8, day_of_window)      # Stempel = Fensterende
-    dmax1 = daily_max(series, day_of_hour)    # Stempel = Fensterstart
+    dmax8 = daily_max(s8, day_of_window)      # stamp = window end
+    dmax1 = daily_max(series, day_of_hour)    # stamp = window start
 
     hours_by_year: dict[int, int] = defaultdict(int)
     max1_by_year: dict[int, float] = {}
@@ -338,8 +338,8 @@ def yearly_stats(series: list[tuple[datetime, float]]) -> dict:
             "hours_1h_over_180": over180_by_year[y],
             "peak_season_mean": peak_season_mean(dmax8, y),
             "days_measured": len({d for d in dmax1 if d.year == y}),
-            # Das laufende Jahr ist noch nicht zu Ende: Tage>120 und
-            # peak_season_mean sind Zwischenstaende, nicht Jahreswerte.
+            # The running year is not over: days>120 and peak_season_mean
+            # are interim figures, not annual values.
             "partial": y >= this_year,
         }
     return out
@@ -347,7 +347,7 @@ def yearly_stats(series: list[tuple[datetime, float]]) -> dict:
 
 def hour_profile(series: list[tuple[datetime, float]],
                  last_years: int = PROFILE_YEARS) -> dict:
-    """Tagesgang der Ozonsaison: Median und Quartile je Stunde."""
+    """Daily cycle of the ozone season: median and quartiles per hour."""
     if not series:
         return {"median": [None] * 24, "p25": [None] * 24, "p75": [None] * 24,
                 "n_days": 0, "years": []}
@@ -380,12 +380,12 @@ def hour_profile(series: list[tuple[datetime, float]],
 
 def recent_series(series: list[tuple[datetime, float]],
                   days: int = RECENT_DAYS) -> dict:
-    """Die letzten Tage als Stundenreihe, fuer die Verlaufskurve im Dashboard.
+    """The last few days as an hourly series, for the dashboard's curve.
 
-    ACHTUNG Beschriftung: hier nach FENSTERENDE, nicht nach Start. Damit passt
-    die Reihe stossfrei an history.jsonl, das die Zeitstempel der Landesseite
-    uebernimmt — und die beschriftet nach Fensterende. Ohne diese Umrechnung
-    liegen Archiv und Eigenlog um eine Stunde versetzt aneinander.
+    NOTE on labelling: by WINDOW END here, not by start. That makes the series
+    join history.jsonl seamlessly, which adopts the regional page's timestamps
+    — and those are labelled by window end. Without this conversion the
+    archive and the local log would sit an hour apart.
     """
     if not series:
         return {"t": [], "v": [], "labelled": "window_end"}
@@ -415,14 +415,14 @@ def best_window(profile: dict, width: int = 3) -> Optional[dict]:
 
 def day_of_year_context(series: list[tuple[datetime, float]],
                         target: date, window_days: int = 3) -> Optional[dict]:
-    """Referenzverteilung der 1-h-Tagesmaxima im selben Kalenderfenster der
-    Vorjahre. Beantwortet 'ist das viel oder normal fuer Mitte August'.
+    """Reference distribution of the 1h daily maxima in the same calendar
+    window of previous years. Answers "is this a lot, or normal for mid-August".
 
-    Bewusst OHNE den heutigen Wert: das Archiv hinkt 1 bis 25 Stunden nach,
-    der laufende Tag ist darin unvollstaendig, und sein Maximum waere damit
-    ein Vormittagswert, der gegen vollstaendige Tage verglichen wird. Das
-    ergab reproduzierbar absurde Perzentile (Lustenau 67 statt 163 µg/m³).
-    Den Tageswert setzt ozon_vorarlberg.py aus der Live-Quelle ein.
+    Deliberately WITHOUT today's value: the archive lags 1 to 25 hours behind,
+    the running day is incomplete in it, and its maximum would therefore be a
+    morning value compared against complete days. That produced reproducibly
+    absurd percentiles (Lustenau 67 instead of 163 ug/m3). ozon_vorarlberg.py
+    fills in today's value from the live source.
     """
     dmax1 = daily_max(series)
     ref = []
@@ -449,14 +449,14 @@ def day_of_year_context(series: list[tuple[datetime, float]],
         "n_reference_days": len(ref),
         "years": sorted({d.year for d in dmax1 if d.year != target.year}),
         "p10": q(.10), "median": q(.50), "p90": q(.90), "max": ref[-1],
-        # Sortierte Referenzwerte, damit das Perzentil des Live-Tageswerts
-        # ohne erneuten Archivzugriff berechenbar bleibt.
+        # Sorted reference values so the percentile of the live daily value
+        # stays computable without touching the archive again.
         "reference_sorted": ref,
     }
 
 
 # ---------------------------------------------------------------------------
-# Aufbau
+# Build
 # ---------------------------------------------------------------------------
 
 
@@ -488,7 +488,7 @@ def build(since: int = FIRST_YEAR, refresh: bool = False,
             "day_context": day_of_year_context(series, now.date()),
         }
 
-    # Bestes Fenster ueber alle Stationen: Median der Stationsmediane.
+    # Best window across all stations: median of the station medians.
     combined = []
     for h in range(24):
         vals = [s["hour_profile"]["median"][h] for s in stations.values()
@@ -496,7 +496,7 @@ def build(since: int = FIRST_YEAR, refresh: bool = False,
         combined.append(_median(vals) if vals else None)
     overall = best_window({"median": combined})
 
-    live = DATASETS[-1][0]      # E2a: der Container, der nachwaechst
+    live = DATASETS[-1][0]      # E2a: the container that keeps growing
     lm = blob_last_modified(live, SAMPLING_POINT[STATION_ORDER[0]])
     newest = max((s["last"] for s in stations.values()), default=None)
 
@@ -507,10 +507,10 @@ def build(since: int = FIRST_YEAR, refresh: bool = False,
             "container": live,
             "last_modified": lm,
             "newest_value": newest,
-            "note": ("Die EEA schreibt diesen Container etwa einmal taeglich "
-                     "neu. Der Verzug der Messwerte schwankt daher zwischen "
-                     "rund 1 h und rund 25 h — deshalb traegt das eigene Log "
-                     "das 72-h-Fenster, nicht das Archiv."),
+            "note": ("The EEA rewrites this container about once per day. "
+                     "The data lag therefore swings between roughly 1 h and "
+                     "roughly 25 h — which is why the local log carries the "
+                     "72 h window, not the archive."),
         },
         "timezone": str(tz),
         "source": {
@@ -518,9 +518,9 @@ def build(since: int = FIRST_YEAR, refresh: bool = False,
             "datasets": [{"container": c, "from": y0,
                           "to": (None if y1 == 9999 else y1), "tag": tag}
                          for c, y0, y1, tag in DATASETS],
-            "note": ("EEA Air Quality e-Reporting. Zeitstempel der Quelle in "
-                     "fester MEZ (UTC+1, keine Sommerzeit), hier nach "
-                     "Europe/Vienna konvertiert."),
+            "note": ("EEA Air Quality e-Reporting. Source timestamps in UTC, "
+                     "converted to Europe/Vienna here. Daily metrics are "
+                     "aggregated in fixed CET, as the source does."),
         },
         "thresholds": {
             "who_short_8h": WHO_SHORT_8H,
@@ -535,7 +535,7 @@ def build(since: int = FIRST_YEAR, refresh: bool = False,
 
 def print_coverage(rec: dict) -> None:
     years = sorted({y for s in rec["stations"] for y in s["yearly"]})
-    print(f"{'Jahr':6}" + "".join(f"{s['short'][:9]:>11}" for s in rec["stations"]))
+    print(f"{'Year':6}" + "".join(f"{s['short'][:9]:>11}" for s in rec["stations"]))
     for y in years:
         row = f"{y:6}"
         for s in rec["stations"]:
@@ -546,20 +546,20 @@ def print_coverage(rec: dict) -> None:
 
 def print_stats(rec: dict) -> None:
     for s in rec["stations"]:
-        print(f"\n=== {s['short']} ({s['hours']} Stunden, "
+        print(f"\n=== {s['short']} ({s['hours']} hours, "
               f"{s['first'][:10]} .. {s['last'][:10]}) ===")
         bw = s["best_window"]
         if bw:
-            print(f"  Bestes Fenster: {bw['from_hour']:02d}-{bw['to_hour']:02d} Uhr "
-                  f"(Median {bw['mean']} µg/m³, Saison Apr-Sep, "
-                  f"{s['hour_profile']['n_days']} Tage)")
+            print(f"  Best window: {bw['from_hour']:02d}-{bw['to_hour']:02d} "
+                  f"(median {bw['mean']} ug/m3, season Apr-Sep, "
+                  f"{s['hour_profile']['n_days']} days)")
         dc = s.get("day_context")
         if dc and dc.get("today_max_1h") is not None:
-            print(f"  Heute {dc['today_max_1h']} µg/m³ = {dc.get('percentile')}. "
-                  f"Perzentil des Kalenderfensters "
-                  f"(Median {dc['median']}, Max {dc['max']})")
-        print(f"  {'Jahr':6}{'PeakSeason':>12}{'Tage>120':>10}"
-              f"{'Std>180':>9}{'Max1h':>7}{'Abd.':>7}")
+            print(f"  Today {dc['today_max_1h']} ug/m3 = {dc.get('percentile')}th "
+                  f"percentile of the calendar window "
+                  f"(median {dc['median']}, max {dc['max']})")
+        print(f"  {'Year':6}{'PeakSeason':>12}{'Days>120':>10}"
+              f"{'Hrs>180':>9}{'Max1h':>7}{'Cov.':>7}")
         for y in sorted(s["yearly"]):
             d = s["yearly"][y]
             if d["coverage"] < .5:
@@ -571,33 +571,33 @@ def print_stats(rec: dict) -> None:
 
 def main(argv: Optional[list[str]] = None) -> int:
     ap = argparse.ArgumentParser(
-        description="EEA-Ozonarchiv fuer Vorarlberg holen und verdichten")
+        description="Fetch and condense the EEA ozone archive for Vorarlberg")
     ap.add_argument("--build", action="store_true",
-                    help="laden, cachen und archive.json schreiben")
-    ap.add_argument("--stats", action="store_true", help="Kennzahlen ausgeben")
+                    help="fetch, cache and write archive.json")
+    ap.add_argument("--stats", action="store_true", help="print the metrics")
     ap.add_argument("--coverage", action="store_true",
-                    help="Datenabdeckung pro Station und Jahr")
-    ap.add_argument("--since", type=int, default=FIRST_YEAR, metavar="JAHR",
-                    help=f"nur ab diesem Jahr (Default {FIRST_YEAR} = alles)")
-    ap.add_argument("--out", default=str(ARCHIVE_JSON), metavar="DATEI")
+                    help="data coverage per station and year")
+    ap.add_argument("--since", type=int, default=FIRST_YEAR, metavar="YEAR",
+                    help=f"only from this year onwards (default {FIRST_YEAR} = everything)")
+    ap.add_argument("--out", default=str(ARCHIVE_JSON), metavar="FILE")
     ap.add_argument("--refresh", action="store_true",
-                    help="Cache verwerfen und neu laden")
+                    help="discard the cache and refetch")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args(argv)
 
     if not (args.build or args.stats or args.coverage):
-        ap.error("nichts zu tun — --build, --stats oder --coverage angeben")
+        ap.error("nothing to do — pass --build, --stats or --coverage")
 
     rec = build(since=args.since, refresh=args.refresh, quiet=args.quiet)
     if not rec["stations"]:
-        print("Keine Station geladen.", file=sys.stderr)
+        print("No station loaded.", file=sys.stderr)
         return 2
 
     up = rec.get("upstream") or {}
     if not args.quiet and up.get("last_modified"):
-        print(f"\nEEA-Container zuletzt geschrieben: {up['last_modified']}",
+        print(f"\nEEA container last written: {up['last_modified']}",
               file=sys.stderr)
-        print(f"Neuester Messwert:                {up.get('newest_value')}",
+        print(f"Newest reading:            {up.get('newest_value')}",
               file=sys.stderr)
 
     if args.build:
@@ -608,8 +608,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         tmp.replace(out)
         if not args.quiet:
             total = sum(s["hours"] for s in rec["stations"])
-            print(f"\n{out} geschrieben — {total} Stundenwerte, "
-                  f"{len(rec['stations'])} Stationen.")
+            print(f"\n{out} written — {total} hourly values, "
+                  f"{len(rec['stations'])} stations.")
     if args.coverage:
         print(); print_coverage(rec)
     if args.stats:

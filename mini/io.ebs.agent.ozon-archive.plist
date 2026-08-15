@@ -2,13 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  EEA-Archiv nachziehen, taeglich um 04:17.
+  Pull the EEA archive forward, daily at 04:17.
 
-  Die EEA schreibt ihren E2a-Container etwa einmal pro Tag neu (belegt am
-  Last-Modified des Blobs). Oefter abzurufen bringt nichts, seltener laesst
-  die Langzeitkennzahlen veralten. --refresh ist zwingend: ohne ihn bleibt
-  der Container im Cache stehen und die Reihe endet, wo sie beim ersten Lauf
-  endete.
+  The EEA rewrites its E2a container roughly once per day (evidenced by the
+  blob's Last-Modified). Fetching more often gains nothing; less often lets
+  the long-term metrics go stale. --refresh is mandatory: without it the
+  container stays in the cache and the series ends where it ended on the
+  first run.
 -->
 <plist version="1.0">
 <dict>

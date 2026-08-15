@@ -1,20 +1,22 @@
-# Abgeleitete Daten — werden vom Cron-Job erzeugt und liegen auf gh-pages
+# Derived data — produced by the cron job, published on the data branch
 data.json
 archive.json
 history.jsonl
 *.tmp
+_data/
 _site/
 demo/
 logs/
+.venv/
 
-# Roher EEA-Parquet-Cache (~26 MB). setup_mini.sh baut ihn neu.
+# Raw EEA parquet cache (~26 MB). mini/install.sh rebuilds it.
 cache/
 
 # Python
 __pycache__/
 *.pyc
 
-# Persönliche Session-Notizen. Bewusst ausgeschlossen: das sind deine eigenen
-# Aufzeichnungen, keine Projektdatei. Wenn du sie doch veröffentlichen willst,
-# diese Zeile löschen und committen — umgekehrt geht es nicht mehr so leicht.
+# Personal session notes. Deliberately excluded: these are your own records,
+# not a project file. To publish them anyway, delete this line and commit —
+# the reverse is not nearly as easy.
 ZUSAMMENFASSUNG.md

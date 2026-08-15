@@ -1,322 +1,329 @@
-# Ozon Vorarlberg
+# Ozone Vorarlberg
 
-Ozonwerte der vier Vorarlberger Messstationen holen, mit bis zu 39 Jahren
-Messhistorie unterlegen und als Trainingsampel anzeigen.
+Fetch the ozone readings of the four Vorarlberg monitoring stations, back them
+with up to 39 years of measurement history, and show the result as a training
+light.
 
-Zwei Quellen, bewusst kombiniert:
+**→ [pasrom.github.io/ozon-vorarlberg](https://pasrom.github.io/ozon-vorarlberg/)**
 
-| Quelle | Was sie liefert | Verzug |
+Two sources, deliberately combined:
+
+| Source | What it gives | Lag |
 |---|---|---|
-| [vorarlberg-luft.at](https://www.vorarlberg-luft.at/tab1O3.htm) | den Jetzt-Wert | keiner |
-| EEA Air Quality e-Reporting | Stundenwerte seit 1988 | 1–25 Stunden |
+| [vorarlberg-luft.at](https://www.vorarlberg-luft.at/tab1O3.htm) | the current value | none |
+| EEA Air Quality e-Reporting | hourly values since 1988 | 1–25 hours |
 
 ```
 python3 -m pip install -r requirements.txt
-python3 eea_archive.py --build                        # ganze Historie laden (einmalig, ~26 MB)
-python3 ozon_vorarlberg.py --log --out data.json      # Jetzt-Wert holen
+python3 eea_archive.py --build                     # full record (one-off, ~26 MB)
+python3 ozon_vorarlberg.py --log --out data.json   # current values
 python3 -m http.server 8000
-open http://localhost:8000/ozon_dashboard.html
+open http://localhost:8000/index.html
 ```
 
-Ohne den Archiv-Schritt läuft alles auch — dann eben ohne Langzeitkennzahlen,
-und die Tageskurve beginnt beim ersten eigenen Log-Eintrag. Nur zum Ansehen:
+Everything runs without the archive step too — just without long-term metrics.
+To look at the dashboard without waiting hours for a series:
 
 ```
-python3 ozon_vorarlberg.py --demo --out data.json     # synthetische Werte
+python3 ozon_vorarlberg.py --demo --out data.json  # synthetic values
 ```
 
-Die Demo ist im Dashboard mit einem Banner markiert. Nicht verwechseln.
+The demo is flagged with a banner in the dashboard. Do not confuse the two.
 
 ---
 
-## Woher die Historie kommt
+## Repository layout
 
-**Die offizielle Landesseite hat keine.** Sie ist ein serverseitig generierter,
-statischer HTML-Export (Generator im Meta-Tag: InterConnect Software, Footer
-„Land Vorarlberg 2004"), wird stündlich neu geschrieben und enthält pro Station
-genau fünf Zahlen:
+```
+main    code and the site itself — GitHub Pages serves from here
+data    data.json + archive.json, nothing else
+```
 
-| Spalte | Bedeutung |
+The dashboard reads the `data` branch at runtime via
+`raw.githubusercontent.com`, with local files taking precedence so a checkout
+still works offline. That keeps the two apart: the logger pushes three times an
+hour without ever touching the site or triggering a Pages rebuild.
+
+The `data` branch is force-pushed as a single orphan commit. At this cadence a
+real commit history would mean ~72 commits per day and roughly half a gigabyte
+of git objects per year — for numbers the EEA archives permanently anyway. The
+irreplaceable part of the record lives upstream, not here.
+
+## Where the history comes from
+
+**The official regional page has none.** It is a server-side generated static
+HTML export (generator in the meta tag: InterConnect Software, footer
+"Land Vorarlberg 2004"), rewritten hourly, carrying exactly five numbers per
+station:
+
+| Column | Meaning |
 |---|---|
-| Akt. Messwert 1-h | aktueller Stundenmittelwert |
-| Tagesmax. 1-h | höchster Stundenwert heute |
-| Tagesmax. 8-h gleitend | höchstes gleitendes 8-Stunden-Mittel heute |
-| Vortag 1-h / 8-h | dieselben Maxima von gestern |
+| Akt. Messwert 1-h | current hourly mean |
+| Tagesmax. 1-h | highest hourly value today |
+| Tagesmax. 8-h gleitend | highest running 8-hour mean today |
+| Vortag 1-h / 8-h | the same two maxima for yesterday |
 
-Die verlinkten Stationsseiten (`statATVA007.htm`) bieten einen „Grafischen
-Verlauf der letzten 2 bzw. 8 Tage" an — dahinter steckt aber nur ein fertig
-gerendertes JPEG (`images/ATVA007O3EU.jpg`). Kein JSON, kein XML, keine API.
-Dasselbe beim Umweltbundesamt: der Zeitverlauf unter
-`luft.umweltbundesamt.at/pub/map_chart/index.pl` akzeptiert beliebige Daten und
-Intervalle bis 28 Tage, gibt aber ebenfalls nur PNGs zurück.
+The linked station pages (`statATVA007.htm`) do offer a "graphical course of
+the last 2 or 8 days" — but behind it sits nothing more than a pre-rendered
+JPEG (`images/ATVA007O3EU.jpg`). No JSON, no XML, no API. Same story at the
+Umweltbundesamt: the time-series tool at
+`luft.umweltbundesamt.at/pub/map_chart/index.pl` accepts arbitrary dates and
+intervals up to 28 days, and returns PNGs.
 
-**Die EEA hat sie.** Dieselben Messwerte liegen als Parquet in öffentlich
-lesbaren Azure-Blob-Containern, ohne API-Key:
+**The EEA has it.** The very same measurements sit as Parquet in publicly
+readable Azure blob containers, no API key:
 
-| Container | Datensatz | Zeitraum | pro Station |
+| Container | Dataset | Period | Per station |
 |---|---|---|---|
-| `airquality-p` | E2a, ungeprüft | 2025-01-01 → heute −1…25 h | ~0,6 MB |
-| `airquality-p-e1a` | E1a, geprüft | 2013-01-01 → 2024-12-31 | ~2,0 MB |
-| `airquality-p-airbase` | AIRBASE | ab 1988 → 2012-12-31 | 1,4–3,5 MB |
+| `airquality-p` | E2a, unverified | 2025-01-01 → now −1…25 h | ~0.6 MB |
+| `airquality-p-e1a` | E1a, verified | 2013-01-01 → 2024-12-31 | ~2.0 MB |
+| `airquality-p-airbase` | AIRBASE | from 1988 → 2012-12-31 | 1.4–3.5 MB |
 
 ```
-https://eeadmz1batchservice02.blob.core.windows.net/<container>/AT/<messpunkt>.parquet
+https://eeadmz1batchservice02.blob.core.windows.net/<container>/AT/<point>.parquet
 ```
 
-Die Messpunkt-Kennung ist zweiteilig und deckt sich mit dem österreichischen
-Immissionsdatenverbund, wo **08 das Netz Vorarlberg** ist:
+The sampling-point identifier has two parts and lines up with the Austrian
+immission data network, where **08 is the Vorarlberg network**:
 
-| EEA-Messpunkt | IDV | Station |
+| EEA sampling point | Network | Station |
 |---|---|---|
 | `SPO.08.0706.983.7.1` | 08/0706 | Lustenau Wiesenrain |
 | `SPO.08.2708.5527.7.1` | 08/2708 | Bludenz Herrengasse |
 | `SPO.08.2801.3213.7.1` | 08/2801 | Wald am Arlberg S16 |
 | `SPO.08.0503.3670.7.1` | 08/0503 | Sulzberg Gmeind |
 
-Die letzte Stelle `.7.` ist der Schadstoffcode für Ozon.
+The trailing `.7.` is the pollutant code for ozone.
 
-Ergebnis: **1 010 324 Stundenwerte**. Die Reihen sind unterschiedlich lang —
-der airbase-Container reicht viel weiter zurück als die EEA-Oberfläche vermuten
-lässt:
+Result: **1,010,324 hourly values**. The series have different lengths — the
+airbase container reaches much further back than the EEA front end suggests:
 
-| Station | ab | Stunden | Abdeckung |
+| Station | From | Hours | Coverage |
 |---|---|---|---|
-| Lustenau Wiesenrain | 1988-01 | 322 405 | 95,2 % |
-| Sulzberg Gmeind | 1989-05 | 305 518 | 93,6 % |
-| Wald am Arlberg | 2003-01 | 194 280 | 93,8 % |
-| Bludenz Herrengasse | 2004-01 | 188 121 | 94,9 % |
+| Lustenau Wiesenrain | 1988-01 | 322,405 | 95.2 % |
+| Sulzberg Gmeind | 1989-05 | 305,518 | 93.6 % |
+| Wald am Arlberg | 2003-01 | 194,280 | 93.8 % |
+| Bludenz Herrengasse | 2004-01 | 188,121 | 94.9 % |
 
-### Verifiziert, nicht vermutet
+### Verified, not assumed
 
-Dass es dieselben Messungen sind, ist an **23 unabhängigen Referenzpunkten**
-geprüft, alle exakt:
+That these are the same measurements is checked against **23 independent
+reference points**, all exact:
 
-| Prüfung | Referenz | Ergebnis |
+| Check | Reference | Result |
 |---|---|---|
-| 11 Stundenwerte (3 Uhrzeiten × 4 Stationen) | Screenshots 30.07.2026 | 11/11 exakt |
-| Tagesmax. 8 h bis 13:00, 4 Stationen | Screenshots 30.07.2026 | 4/4 exakt |
-| Tagesmax. 1 h, 4 Stationen | Vortagsspalte 13.08.2026 | 4/4 exakt |
-| Tagesmax. 8 h, 4 Stationen | Vortagsspalte 13.08.2026 | 4/4 exakt |
+| 11 hourly values (3 times × 4 stations) | screenshots 2026-07-30 | 11/11 exact |
+| daily 8h max up to 13:00, 4 stations | screenshots 2026-07-30 | 4/4 exact |
+| daily 1h max, 4 stations | previous-day column 2026-08-14 | 4/4 exact |
+| daily 8h max, 4 stations | previous-day column 2026-08-14 | 4/4 exact |
 
-Die EEA liefert unrundet (`138.487` statt `138`), die Landesseite rundet auf
-ganze µg/m³ — bei ~1000 geprüften Nachkommastellen sind die Rohwerte
-quasi-kontinuierlich. Alle Prüfungen laufen als Tests in
-`test_eea_archive.TestAgainstOfficialSource` und überspringen sich, wenn der
-Parquet-Cache fehlt.
+The EEA delivers unrounded values (`138.487` instead of `138`); the regional
+page rounds to whole µg/m³. All of these run as tests in
+`test_eea_archive.TestAgainstOfficialSource` and skip themselves when the
+parquet cache is absent.
 
-### Zwei Zeitkonventionen, die beide falsch geraten waren
+### Two time conventions, both guessed wrong at first
 
-Das war der schwierigste Teil und der Ort für stille Ein-Stunden-Fehler:
+This was the hardest part and the place where silent one-hour errors live:
 
-**1. `Start` steht in UTC** und bezeichnet den Beginn der gemittelten Stunde.
-Die Landesseite beschriftet dagegen nach dem **Ende** der Stunde und in
-Lokalzeit: der auf der Seite als „13:00" ausgewiesene Wert liegt im EEA-Datensatz
-unter `Start = 10:00` (= 12:00 MESZ, Fenster 12–13 Uhr lokal).
+**1. `Start` holds UTC** and marks the beginning of the averaged hour. The
+regional page labels by the **end** of the hour and in local time: the value
+shown there as "13:00" sits in the EEA data under `Start = 10:00` (= 12:00
+CEST, window 12–13 local).
 
-Eine frühere Annahme „feste MEZ" war um eine Stunde falsch. Sie stammte aus
-einer Phasenkorrelation gegen Modelldaten, die zwischen 0 und −1 h praktisch
-nicht trennt (r 0,87 gegen 0,86). **Exakte Integer-Treffer an 11 Werten schlagen
-Korrelation** — daraus wurde die Regel, Konventionen nur gegen die Quelle selbst
-festzunageln.
+An earlier assumption of "fixed CET" was one hour off. It came from a phase
+correlation against model data that barely separates 0 from −1 h (r 0.87 vs
+0.86). **Exact integer hits on 11 values beat correlation** — which became the
+rule: pin conventions against the source itself, never against a proxy.
 
-**2. Tageskennzahlen werden in fester MEZ aggregiert** (UTC+1, ohne
-Sommerzeit), obwohl die Einzelwerte in Lokalzeit angezeigt werden. Zwei
-verschiedene Dinge, die leicht zu verwechseln sind. Mit der Tagesgrenze in MESZ
-stimmten nur 3 von 8 Tagesmaxima, mit fester MEZ alle 8.
+**2. Daily metrics are aggregated in fixed CET** (UTC+1, no daylight saving),
+even though individual values are displayed in local time. Two different
+things, easy to conflate. With the day boundary in CEST only 3 of 8 daily
+maxima matched; with fixed CET all 8 did.
 
-Dazu die EU-Konvention: ein 8-h-Mittel gehört zu dem Tag, an dem es **endet**,
-wobei 24:00 noch zum alten Tag zählt. Das erste Fenster eines Tages beginnt also
-am Vorabend — und ist an ruhigen Vormittagen oft schon das Tagesmaximum. Genau
-so kommt die Landesseite am 30.07. um 13:00 auf 107 µg/m³ für Bludenz, obwohl
-kein Fenster des Vormittags über 94 lag.
+On top of that the EU convention: an 8-hour mean belongs to the day on which it
+**ends**, with 24:00 still counting towards the old day. The first window of a
+day therefore starts the previous evening — and on quiet mornings it is often
+already the daily maximum. That is exactly how the regional page arrives at
+107 µg/m³ for Bludenz at 13:00 on 30 July, when no window of that morning
+exceeded 94.
 
-`EEA_TZ` und `AGG_TZ` in `eea_archive.py` halten beides fest, sieben Tests
-sichern es ab.
+`EEA_TZ` and `AGG_TZ` in `eea_archive.py` pin both down; seven tests hold them.
 
-Der **Tagesgang** ist dagegen nach dem Fenster-*Start* in Lokalzeit beschriftet:
-„06 Uhr" heißt die Stunde 06:00–07:00. Das ist die Lesart, die ein
-Trainingsfenster braucht („um 06:00 rausgehen").
+The **daily cycle**, by contrast, is labelled by window *start* in local time:
+"06" means the hour 06:00–07:00. That is the reading a training window needs
+("head out at 06:00").
 
-## Die zwei Bewertungsachsen
+## The two assessment axes
 
-Das ist die inhaltliche Korrektur gegenüber der ersten Version. Dort stand der
-akute 1-h-Wert groß auf der Karte, die Ampel färbte sich aber nach dem
-**8-h-Tagesmaximum**. Das ist irreführend: mittags schleppt der gleitende
-8-h-Wert noch die kühlen Morgenstunden mit und liegt deutlich unter dem, was
-gerade tatsächlich in der Luft ist. Am 30.07.2026 um 13:00 zeigte Bludenz
-130 µg/m³ akut, aber nur 107 im 8-h-Mittel — die Karte wurde grün-gelb, während
-draußen 130 anlagen.
+This is the substantive correction over the first version. There the acute
+1-hour value was shown in large type while the traffic light was coloured by
+the **daily 8-hour maximum**. That is misleading: around midday the running
+8-hour mean still drags the cool morning hours along and sits well below what
+is actually in the air. On 2026-07-30 at 13:00 Bludenz read 130 µg/m³ acute but
+only 107 in the 8-hour mean — the card went green-yellow while 130 was outside.
 
-Jetzt getrennt:
+Now separated:
 
-**1. Trainings-Ampel** — läuft auf dem **aktuellen 1-h-Wert**, also auf dem, was
-du gerade atmest.
+**1. Training light** — runs on the **current 1-hour value**, i.e. on what you
+are breathing right now.
 
-| µg/m³ (1 h) | Status | Wort | Bedeutung |
+| µg/m³ (1 h) | Status | Word | Meaning |
 |---|---|---|---|
-| 0–99 | good | frei | volle Einheit möglich, auch intensiv |
-| 100–119 | warning | ok | kurze Einheiten unkritisch, lange harte Blocks kürzen |
-| 120–179 | serious | locker | nur Grundlage; Intervalle auf morgen früh |
-| ab 180 | critical | drinnen | Informationsschwelle, Outdoor-Sport absagen |
+| 0–99 | good | free | full session possible, intervals included |
+| 100–119 | warning | ok | short sessions fine, shorten long hard blocks |
+| 120–179 | serious | easy | base pace only; move intervals to tomorrow morning |
+| 180+ | critical | indoors | information threshold, cancel outdoor sport |
 
-Die 100er- und 120er-Marke sind von den 8-h-Richtwerten geliehen. Das ist eine
-**pragmatische Skala, kein Rechtswert** — so steht es auch im Dashboard. Nur die
-180 ist ein echter gesetzlicher Wert.
+The 100 and 120 marks are borrowed from the 8-hour guidelines. That makes this
+a **pragmatic scale, not a legal limit** — the dashboard says so too. Only the
+180 is an actual statutory value.
 
-**2. Tagesbewertung** — läuft auf dem **8-h-Tagesmaximum** und ist der
-gesundheitliche Kontext des Tages, gemessen an den echten Referenzwerten:
+**2. Daily assessment** — runs on the **daily 8-hour maximum** and is the
+health context of the day, measured against the real reference values:
 
-| Wert | Herkunft |
+| Value | Origin |
 |---|---|
-| 60 µg/m³ | WHO 2021, Langfrist: Mittel der 8-h-Tagesmaxima über die sechs ozonreichsten Monate |
-| 100 µg/m³ | WHO 2021, Kurzzeit-Leitwert, max. 8-h-Tagesmittel. Rein gesundheitsbasiert |
-| 120 µg/m³ | EU-Zielwert, 8 h gleitend. Darf an begrenzt vielen Tagen überschritten werden (max. 25 im Mittel über drei Jahre) |
-| 180 µg/m³ | Österreichische Informationsschwelle, 1-h-Mittel. Ab hier wird die Bevölkerung aktiv gewarnt |
+| 60 µg/m³ | WHO 2021, long-term: mean of the daily 8h maxima over the six most ozone-rich months |
+| 100 µg/m³ | WHO 2021, short-term guideline, max. daily 8h mean. Purely health-based |
+| 120 µg/m³ | EU target value, running 8 h. May be exceeded on a limited number of days (max. 25, averaged over three years) |
+| 180 µg/m³ | Austrian information threshold, 1h mean. From here the public is actively warned |
 
-Dass die WHO-Werte strenger sind als die gesetzlichen, ist kein Widerspruch: die
-WHO-Werte sind rein epidemiologisch abgeleitet, die gesetzlichen sind politisch
-und technisch machbare Kompromisse.
+That the WHO values are stricter than the statutory ones is no contradiction:
+the WHO values are derived purely epidemiologically, the statutory ones are
+politically and technically feasible compromises.
 
-**3. Langzeitvergleich** — aus dem Archiv: wo liegt der heutige Tageswert im
-Vergleich zum selben Kalenderfenster (±3 Tage) aller Vorjahre? Der Tageswert
-dafür kommt aus der **Live-Quelle**, nicht aus dem Archiv — das Archiv hinkt
-1 bis 25 Stunden nach, sein Maximum für den laufenden Tag wäre
-unvollständig. Genau dieser Fehler produzierte reproduzierbar absurde
-Perzentile (Lustenau 67 statt 163 µg/m³), bevor die Zuständigkeit getrennt war.
+**3. Long-term comparison** — from the archive: where does today's daily value
+sit relative to the same calendar window (±3 days) of all previous years?
+Today's value for this comes from the **live source**, not the archive — the
+archive lags 1 to 25 hours behind, so its maximum for the running day would be
+a morning value. Exactly that error produced reproducibly absurd percentiles
+(Lustenau 67 instead of 163 µg/m³) before the responsibilities were split.
 
-## Dateien
+## Files
 
-| Datei | Zweck |
+| File | Purpose |
 |---|---|
-| `ozon_vorarlberg.py` | Scraper, Historien-Logger, Bewertung |
-| `eea_archive.py` | EEA-Archiv laden, cachen, zu Kennzahlen verdichten |
-| `ozon_dashboard.html` | Dashboard. Eine Datei, keine externen Libraries |
-| `data.json` | Ausgabe des Scrapers, Eingabe des Dashboards. Atomar geschrieben |
-| `archive.json` | Archivkennzahlen. Wird von `ozon_vorarlberg.py` mit eingelesen |
-| `history.jsonl` | eine Zeile pro Snapshot, trägt das 72-h-Fenster (auf 4 Tage gekürzt) |
-| `cache/eea/` | rohe Parquet-Dateien (~26 MB), damit `--build` offline wiederholbar ist |
-| `fixtures/tab1O3_live.htm` | echter Abzug der Quellseite, unverändert. Basis der Tests |
-| `fixtures/tab1O3_minimal.htm` | handgeschriebene Minimal-Fixture (ältere Struktur) |
-| `test_ozon_vorarlberg.py` | 60 Tests |
-| `test_eea_archive.py` | 73 Tests; die Quellenvergleiche brauchen den Cache, der Rest läuft offline |
-| `deploy.sh` | scrapen, bauen, pushen. Lock, Heartbeat, Telegram bei Fehler |
-| `refresh_archive.sh` | EEA-Archiv nachziehen (täglich) |
-| `mini/install.sh` | Einrichtung auf dem Agent-Server, ohne root |
-| `mini/*.plist` | die beiden LaunchDaemons |
+| `ozon_vorarlberg.py` | scraper, history logger, assessment |
+| `eea_archive.py` | fetch the EEA archive, cache it, condense it into metrics |
+| `index.html` | the dashboard. One file, no external libraries |
+| `deploy.sh` | fetch, build, push. Lock, heartbeat, Telegram on failure |
+| `refresh_archive.sh` | pull the EEA archive forward (daily) |
+| `mini/install.sh` | setup on the agent server, without root |
+| `mini/*.plist` | the two LaunchDaemons |
+| `fixtures/tab1O3_live.htm` | real dump of the source page, unmodified. Basis of the tests |
+| `fixtures/tab1O3_minimal.htm` | hand-written minimal fixture (older structure) |
+| `test_ozon_vorarlberg.py` | 60 tests |
+| `test_eea_archive.py` | 73 tests; the source comparisons need the cache, the rest runs offline |
 
-`python3 -m unittest -v` führt alle 133 aus.
+`python3 -m unittest -v` runs all 133.
 
 ## CLI
 
 ```
-python3 ozon_vorarlberg.py                       # JSON auf stdout
-python3 ozon_vorarlberg.py --compact             # Klartext pro Station
-python3 ozon_vorarlberg.py --log --out data.json # der Cron-Aufruf
-python3 ozon_vorarlberg.py --station sulzberg    # filtern
+python3 ozon_vorarlberg.py                       # JSON on stdout
+python3 ozon_vorarlberg.py --compact             # plain text per station
+python3 ozon_vorarlberg.py --log --out data.json # the cron invocation
+python3 ozon_vorarlberg.py --station sulzberg    # filter
 python3 ozon_vorarlberg.py --html fixtures/tab1O3_live.htm   # offline
-python3 ozon_vorarlberg.py --no-archive          # Archiv ignorieren
-python3 ozon_vorarlberg.py --strict              # bei Layoutänderung abbrechen
+python3 ozon_vorarlberg.py --no-archive          # ignore the archive
+python3 ozon_vorarlberg.py --strict              # abort on a layout change
 
-python3 eea_archive.py --build                   # laden + archive.json
-python3 eea_archive.py --build --since 2003      # Reihe kürzen
-python3 eea_archive.py --stats                   # Kennzahlen ausgeben
-python3 eea_archive.py --coverage                # Abdeckung pro Station/Jahr
-python3 eea_archive.py --build --refresh         # Cache verwerfen
+python3 eea_archive.py --build                   # fetch + archive.json
+python3 eea_archive.py --build --since 2003      # shorten the series
+python3 eea_archive.py --stats                   # print the metrics
+python3 eea_archive.py --coverage                # coverage per station/year
+python3 eea_archive.py --build --refresh         # discard the cache
 ```
 
-`--compact` mit Archiv:
+`--compact` with the archive present:
 
 ```
-# 14.08.2026 21:00  (Quelle: vorarlberg-luft.at)
-serious   locker   Lustenau         akt= 136 ▼  1h-Max= 163 8h-Max= 155 [über EU-Zielwert]
-serious   locker   Bludenz          akt= 155 ▬  1h-Max= 159 8h-Max= 150 [über EU-Zielwert]
-serious   locker   Wald a. Arlberg  akt= 137 ▼  1h-Max= 147 8h-Max= 136 [über EU-Zielwert]
-serious   locker   Sulzberg         akt= 149 ▼  1h-Max= 156 8h-Max= 151 [über EU-Zielwert]
+# 15.08.2026 11:00  (source: vorarlberg-luft.at)
+warning   ok       Lustenau         akt= 101 ▼  1h-Max= 163 8h-Max= 155 [above EU target]
+serious   easy     Bludenz          akt= 130 ▼  1h-Max= 159 8h-Max= 150 [above EU target]
+good      free     Wald a. Arlberg  akt=  94 ▼  1h-Max= 147 8h-Max= 136 [above EU target]
+serious   easy     Sulzberg         akt= 154 ▲  1h-Max= 158 8h-Max= 152 [above EU target]
 
--> Sauberste Station: Lustenau (136 ug/m3)
--> Archiv: 1010324 Stundenwerte, 1988-2026
--> Bestes Trainingsfenster (1988-2026, Saisondaten): 06-09 Uhr, Median 37 ug/m3
-   Lustenau         heute 163 =  92. Perzentil (Median 112, Max 237 seit 1988)
-   Bludenz          heute 159 =  99. Perzentil (Median 101, Max 165 seit 2004)
-   Wald a. Arlberg  heute 147 =  98. Perzentil (Median 96, Max 189 seit 2003)
-   Sulzberg         heute 156 =  90. Perzentil (Median 114, Max 209 seit 1989)
--> Historie: 3 Punkte / 4 h
+-> Cleanest station: Wald a. Arlberg (94 ug/m3)
+-> Archive: 1010324 hourly values, 1988-2026
+-> Best training window (1988-2026, season data): 06-09, median 37 ug/m3
+   Lustenau         today 163 =  92th percentile (median 112, max 237 since 1988)
 ```
 
 ### `--strict`
 
-Ohne `--strict` ist der Parser tolerant und liefert, was er findet. Mit
-`--strict` bricht er mit Exit-Code 2 ab, wenn eine Station fehlt, der
-Zeitstempel unlesbar ist oder die Schwellwert-Zeile der Seite nicht mehr
-`180 / 180 / 120 / 180 / 120` lautet. Letzteres ist der Kanarienvogel für eine
-Spaltenumsortierung: die Seite dokumentiert ihre eigenen Grenzwerte in der
-letzten Tabellenzeile. Für den Cron-Job ist `--strict` die richtige Wahl — ein
-harter Fehler ist besser als stillschweigend falsch zugeordnete Zahlen.
+Without `--strict` the parser is tolerant and returns whatever it finds. With
+it, the run aborts with exit code 2 when a station is missing, the timestamp is
+unreadable, or the page's own threshold row is no longer
+`180 / 180 / 120 / 180 / 120`. The latter is the canary for a column reshuffle:
+the page documents its own limits in the last table row. For the cron job
+`--strict` is the right choice — a hard error beats silently misassigned
+numbers.
 
-## Was das Archiv sagt
+## What the archive says
 
-Aus `eea_archive.py --stats`, Stand August 2026:
+From `eea_archive.py --stats`, as of August 2026:
 
-- **Bestes Trainingsfenster: 06–09 Uhr** an den Talstationen, Median 35–38 µg/m³.
-  Die Faustregel „vormittags im Tal" ist damit nachgerechnet, nicht nur plausibel.
-- **Sulzberg hat ein anderes Fenster: 09–12 Uhr**, und selbst dort liegt der
-  Median bei 79 µg/m³ — mehr als doppelt so hoch wie im Tal zur besten Zeit. Die
-  Höhenstation hat kaum einen Tagesgang, ihr Minimum liegt am späten Vormittag.
-  Das ist die Aussage aus Abschnitt 4 der Zusammenfassung, quantifiziert: für
-  Ozon ist die Talsohle am Morgen klar besser als die Bergtour.
-- **Langfristiger Rückgang, deutlich an der Höhenstation.** Sulzberg:
-  128 µg/m³ Peak-Season-Mittel 1990 → 97–103 in 2024/25. Lustenau: 100–107 in
-  1988–90 → 88–94 in 2024/25. Die Luftreinhaltung wirkt, aber langsam.
-- **2003 war der Ausnahmesommer**: Lustenau 121,5 µg/m³, 101 Tage über dem
-  EU-Zielwert, 82 Stunden über der Informationsschwelle. Kein Jahr danach kam in
-  die Nähe.
-- **2024 war das sauberste Jahr** der Reihe: Lustenau 88,1, nur 2 Tage über 120.
-- **2026 ist auffällig**: bis Mitte August schon 107,8 Peak-Season-Mittel und
-  43 Tage über 120 an Lustenau — höher als 2018 (107,6) und damit der zweithöchste
-  Wert der ganzen Reihe. Das Jahr ist nicht zu Ende, der Wert also ein
-  Zwischenstand (im Dashboard hohl gezeichnet).
-- **Der EU-Zielwert wird etwa in jedem zweiten Jahr gerissen**: erlaubt sind
-  25 Tage im 3-Jahres-Mittel. Sehr ungleich verteilt — Sulzberg 87 % der Jahre,
+- **Best training window: 06–09** at the valley stations, median 35–38 µg/m³.
+  The rule of thumb "mornings in the valley" is now computed, not just
+  plausible.
+- **Sulzberg has a different window: 09–12**, and even there the median is
+  79 µg/m³ — more than twice the valley's best. The high-altitude station
+  barely has a daily cycle; its minimum falls in the late morning. For ozone
+  the valley floor in the morning clearly beats the mountain tour.
+- **Long-term decline, most visible at altitude.** Sulzberg: 128 µg/m³
+  peak-season mean in 1990 → 97–103 in 2024/25. Lustenau: 100–107 in 1988–90 →
+  88–94 in 2024/25. Air quality policy is working, slowly.
+- **2003 was the exceptional summer**: Lustenau 121.5 µg/m³, 101 days above the
+  EU target, 82 hours above the information threshold. No year since came close.
+- **2024 was the cleanest year** of the record: Lustenau 88.1, only 2 days
+  above 120.
+- **2026 stands out**: by mid-August already 107.8 peak-season mean and 43 days
+  above 120 at Lustenau — higher than 2018 (107.6) and the second-highest of
+  the whole record. The year is not over, so that is an interim figure (drawn
+  hollow in the dashboard).
+- **The EU target is missed in roughly every second year**: 25 days are allowed
+  averaged over three years. Very unevenly spread — Sulzberg 87 % of years,
   Lustenau 65 %, Bludenz 23 %, Wald am Arlberg 9 %.
-- Zum **WHO-Langfristziel von 60 µg/m³** ist der Abstand groß und stabil: keine
-  Station lag in der ganzen Reihe jemals unter 80.
+- The distance to the **WHO long-term goal of 60 µg/m³** is large and stable:
+  no station was ever below 80 in the entire record.
 
-## Wie genau ist die Historie?
+## How accurate is the history?
 
-- **Übereinstimmung mit der Quelle: 23/23 Referenzpunkte exakt** (siehe oben).
-- **Auflösung**: die EEA liefert unrundete Fließkommawerte, die Landesseite
-  rundet auf ganze µg/m³. Die Rundung ist die einzige Abweichung zwischen beiden.
-- **Validity-Filter**: von 1 060 448 Zeilen sind 1 010 324 gültig (95,3 %),
-  50 124 mit Flag `-1` (ungültig) werden verworfen. Andere Codes kommen nicht vor.
-  Ein ungültiger Wert ist schlimmer als eine Lücke.
-- **Lücken**: rund 8 500 pro Station über die ganze Reihe, davon ganz überwiegend
-  einzelne Stunden — das sind die automatischen Kalibrierzyklen der
-  Referenzgeräte, etwa 220 pro Jahr. Nur 10–44 Lücken je Station sind länger als
-  24 Stunden.
-- **Zwei echte Ausfälle**: Sulzberg fehlt das ganze Jahr 2000 (8 820 h), Wald am
-  Arlberg fehlen 1 428 h ab Februar 2003. Beide Jahre fallen über die
-  Abdeckungsschwelle von 80 % automatisch aus den Kennzahlen.
-- **Lücken interpolieren nicht**: `rolling_8h` bricht ein Fenster an Lücken statt
-  darüber hinweg zu mitteln, und verlangt mindestens 6 von 8 Stunden. Dadurch
-  fehlt bei 0,01–0,05 % der Tage ein 8-h-Maximum — vernachlässigbar, aber es
-  bedeutet, dass Überschreitungstage minimal untererfasst sein können.
-- **2025/2026 ist ungeprüft** (E2a). Diese Werte können nachträglich korrigiert
-  werden; `--refresh` holt Korrekturen. Ab 2024 rückwärts sind die Daten
-  qualitätsgesichert (E1a bzw. AIRBASE).
+- **Agreement with the source: 23/23 reference points exact** (see above).
+- **Resolution**: the EEA delivers unrounded floats, the regional page rounds
+  to whole µg/m³. Rounding is the only difference between the two.
+- **Validity filter**: of 1,060,448 rows, 1,010,324 are valid (95.3 %); 50,124
+  carry flag `-1` (invalid) and are dropped. No other codes occur. An invalid
+  value is worse than a gap.
+- **Gaps**: around 8,500 per station across the whole record, the vast majority
+  single hours — the automatic calibration cycles of the reference instruments,
+  roughly 220 per year. Only 10–44 gaps per station exceed 24 hours.
+- **Two real outages**: Sulzberg is missing all of 2000 (8,820 h), Wald am
+  Arlberg 1,428 h from February 2003. Both years drop out of the metrics
+  automatically via the 80 % coverage threshold.
+- **Gaps are not interpolated**: `rolling_8h` breaks a window at gaps rather
+  than averaging across, and requires at least 6 of 8 hours. As a result
+  0.01–0.05 % of days have no 8h maximum — negligible, but it does mean
+  exceedance days can be marginally undercounted.
+- **2025/2026 is unverified** (E2a). Those values may be corrected later;
+  `--refresh` picks corrections up. From 2024 backwards the data is
+  quality-assured (E1a and AIRBASE).
 
-## Betrieb auf dem Agent-Server
+## Operation on the agent server
 
-Der Logger läuft auf dem Mac mini als Benutzer `agent`, nach den Konventionen
-aus `tools-workflow/concepts/mac-mini-agent-server.md` im Brain:
+The logger runs on the Mac mini as the `agent` user, following the conventions
+in `tools-workflow/concepts/mac-mini-agent-server.md`:
 
 | | |
 |---|---|
-| `io.ebs.agent.ozon` | dreimal pro Stunde (:07, :27, :47) — scrapen, bauen, nach `gh-pages` pushen |
-| `io.ebs.agent.ozon-archive` | täglich 04:17 — EEA-Archiv nachziehen |
+| `io.ebs.agent.ozon` | three times per hour (:07, :27, :47) — scrape, build, push to `data` |
+| `io.ebs.agent.ozon-archive` | daily 04:17 — pull the EEA archive forward |
 
-Beides sind **LaunchDaemons** in `/Library/LaunchDaemons/` mit `UserName=agent`,
-keine LaunchAgents: per-User-Agents laufen nur mit aktiver GUI-Session und wären
-nach einem Reboot des headless Servers tot.
+Both are **LaunchDaemons** in `/Library/LaunchDaemons/` with `UserName=agent`,
+not LaunchAgents: per-user agents only run while that user has an active GUI
+session and would be dead after a reboot of the headless server.
 
 ```
 ssh agent@mac-mini
@@ -324,183 +331,176 @@ git clone git@github.com:pasrom/ozon-vorarlberg.git ~/git/ozon-vorarlberg
 cd ~/git/ozon-vorarlberg && ./mini/install.sh
 ```
 
-`install.sh` erledigt alles ohne root — venv, Abhängigkeiten, Deploy-Key,
-Archiv, Testlauf — und gibt am Ende den sudo-Block für die beiden Daemons aus.
+`install.sh` handles everything that works without root — venv, dependencies,
+deploy key, archive, test run — and prints the sudo block for the two daemons
+at the end.
 
-### Warum es so gebaut ist
+### Why it is built this way
 
-- **`StartCalendarInterval`, nicht `StartInterval`.** War die Maschine zur
-  geplanten Zeit aus, wird der Lauf übersprungen statt nachträglich gefeuert —
-  sonst gibt es nach einem Stromausfall einen Ansturm gleichzeitiger Läufe.
-- **`HOME`, `PATH`, `LANG` stehen im Plist.** launchd setzt `$HOME` nicht und
-  liest `.zshenv` nicht; ohne diese drei scheitern `git` und `gh`.
-- **Lock über `mkdir`.** `flock(1)` gibt es auf macOS nicht. Der `trap` räumt
-  den Lock bei jedem Exit ab, auch bei Signal. Steht er länger als 30 Minuten,
-  meldet der Job das per Telegram, löscht ihn aber nicht selbst — das würde
-  zwei parallele Läufe erlauben.
-- **Eigenes venv statt System-Python.** Das System-Python 3.9 des Minis hat die
-  Abhängigkeiten nicht und ist extern verwaltet; `agent` ist non-admin und kann
-  nicht `brew install`. Das venv baut auf dem vorhandenen Homebrew-Python 3.12 auf.
-- **Deploy-Key statt credential-Helper.** launchd-Jobs haben keinen Zugriff auf
-  den Schlüsselbund; über HTTPS hinge der Push still. `deploy.sh` bricht deshalb
-  ab, wenn `origin` auf HTTPS steht, statt es zu versuchen.
-- **Telegram nur im Fehlerfall**, über das vorhandene `~/agents/bin/notify.sh`.
-  Erfolgreiche Läufe schweigen, sonst wird der Kanal zu Rauschen.
-- **Logs unter `~/agents/logs/ozon/`**, wo die `newsyslog`-Rotation greift
-  (14 Tage, bzip2). Heartbeat nach jedem erfolgreichen Lauf in
+- **`StartCalendarInterval`, not `StartInterval`.** If the machine was off at
+  the scheduled time the run is skipped rather than fired retroactively —
+  otherwise a power cut is followed by a stampede of simultaneous runs.
+- **`HOME`, `PATH`, `LANG` live in the plist.** launchd does not set `$HOME`
+  and does not read `.zshenv`; without those three, `git` and `gh` fail.
+- **Lock via `mkdir`.** macOS has no `flock(1)`. The `trap` clears the lock on
+  every exit, including on a signal. If it stands for more than 30 minutes the
+  job reports that via Telegram but does not remove it — that would allow two
+  runs in parallel.
+- **Its own venv instead of the system python.** The mini's system python 3.9
+  lacks the dependencies and is externally managed; `agent` is non-admin and
+  cannot `brew install`. The venv builds on the existing Homebrew python 3.12.
+- **Deploy key instead of the credential helper.** launchd jobs have no
+  keychain access; over HTTPS the push would hang silently. `deploy.sh`
+  therefore aborts when `origin` is HTTPS rather than trying.
+- **Telegram on failure only**, through the existing `~/agents/bin/notify.sh`.
+  Successful runs stay silent, otherwise the channel turns into noise.
+- **Logs under `~/agents/logs/ozon/`**, where the `newsyslog` rotation applies
+  (14 days, bzip2). Heartbeat after every successful run in
   `~/agents/state/ozon/heartbeat`.
 
-### Bedienung
+### Operating it
 
 ```
-# Status. `launchctl list` ohne sudo zeigt nur die User-Domain und findet
-# System-Daemons NICHT — dann wirkt es faelschlich so, als waeren sie weg.
+# Status. Plain `launchctl list` shows only the user domain and will NOT find
+# system daemons — which looks exactly as if nothing were installed.
 launchctl print system/io.ebs.agent.ozon | grep -E "state|runs|last exit"
 sudo launchctl list | grep io.ebs.agent.ozon
 
-sudo launchctl kickstart -k system/io.ebs.agent.ozon  # sofort feuern
-tail -f ~agent/agents/logs/ozon/$(date +%F).log       # mitlesen
-date -r $(cat ~agent/agents/state/ozon/heartbeat)     # letzter Erfolg
+sudo launchctl kickstart -k system/io.ebs.agent.ozon  # fire immediately
+tail -f ~agent/agents/logs/ozon/$(date +%F).log       # follow
+date -r $(cat ~agent/agents/state/ozon/heartbeat)     # last success
 
-sudo launchctl bootout system/io.ebs.agent.ozon       # anhalten
+sudo launchctl bootout system/io.ebs.agent.ozon       # stop
 ```
 
-## Dashboard
+## The dashboard
 
-Eine einzelne HTML-Datei, keine externen Requests, kein Build-Schritt. Muss über
-HTTP kommen, nicht per Doppelklick — unter `file://` blockiert der Browser das
-Lesen von `data.json`. Das Dashboard sagt das im Fehlerfall explizit.
+A single HTML file, no external requests, no build step. It must be served over
+HTTP rather than opened by double-click — under `file://` the browser blocks
+reading `data.json`. The dashboard says so explicitly instead of staying blank.
 
-- **Hero** — Lage jetzt an der höchsten Station, sauberste Station, bestes
-  Zeitfenster, heutiger Langzeit-Perzentilwert.
-- **Stationskacheln** — akuter Wert, Trend gegen den letzten Log-Eintrag,
-  Sparkline, Tagesbewertung, Höhenlage, Langzeit-Perzentil.
-- **Verlauf** — 24/48/72 h, aus **zwei Quellen zusammengesetzt**: das
-  eigene Log trägt das Fenster, das Archiv füllt es bei der Erstinbetriebnahme
-  vor. Der Kartentext nennt, wie viele Werte aus welcher Quelle
-  kommen und bis wann das Archiv reicht. Referenzlinien bei 100/120/180,
-  Crosshair mit Werten für alle Serien, per Maus oder Pfeiltasten. Lücken über
-  2 h werden **nicht** interpoliert, damit ein ausgefallener Cron-Job nicht als
-  glatte Linie durchläuft; einzeln stehende Punkte werden als Punkt gezeichnet,
-  damit ein isolierter Tagespeak nicht unsichtbar wird.
-- **Tagesgang** — Median je Stunde aus fünf Jahren Saisondaten (April–September).
-  Eine einzelne Station in der Legende auswählen zeigt ihr
-  25.–75.-Perzentil-Band; bei vier Stationen gleichzeitig wären vier Bänder
-  Matsch. Ohne Archiv fällt die Karte auf die selbst geloggten Tage zurück.
-- **Jahresreihe** — seit 1988, umschaltbar zwischen Peak-Season-Mittel, Tagen
-  über dem EU-Zielwert und höchstem 1-h-Wert. Drei Kennzahlen mit zwei
-  Einheiten, deshalb ein Umschalter und immer nur **eine** y-Achse — nie zwei
-  Skalen in einem Plot.
-- **Tabellenansicht** — dieselben Zahlen ohne Farbcodierung.
-- **Muster** — schaltet die Linien auf unterscheidbare Strichmuster um, für
-  Farbsehschwäche, Ausdruck und Schwarzweiß.
+- **Hero** — situation now at the highest station, cleanest station, best time
+  window, today's long-term percentile.
+- **Station tiles** — acute value, trend against the previous log entry,
+  sparkline, daily assessment, altitude, long-term percentile.
+- **Series** — 24/48/72 h, assembled from **two sources**: the EEA archive for
+  the initial fill, the local log for the recent hours. The card text names how
+  many values come from which source. Reference lines at 100/120/180, crosshair
+  with values for every series, by mouse or arrow keys. Gaps over 2 h are
+  **not** interpolated so a missed cron run does not run through as a smooth
+  line; isolated points are drawn as points so a lone daily peak does not
+  become invisible.
+- **Daily cycle** — median per hour from five years of season data
+  (April–September). Selecting a single station in the legend shows its
+  25th–75th percentile band; with four stations at once four bands would be
+  mush. Without the archive the card falls back to the locally logged days.
+- **Annual series** — since 1988, switchable between peak-season mean, days
+  above the EU target and highest 1-hour value. Three metrics with two units,
+  hence a switch and always only **one** y-axis — never two scales in one plot.
+- **Table view** — the same numbers without colour coding.
+- **Pattern** — switches the lines to distinguishable dash patterns, for colour
+  vision deficiency, print and black and white.
 
-Auto-Refresh alle 5 Minuten. Beim Nachladen bleibt das alte Bild bei reduzierter
-Deckkraft stehen, kein Skeleton-Flackern, kein Layout-Sprung.
+Auto-refresh every 5 minutes. While reloading, the previous render is held at
+reduced opacity — no skeleton flash, no layout jump.
 
-### Farben
+### Colours
 
-Vier Stationen = vier kategoriale Serienfarben (Blau, Orange, Aqua, Gelb), fest
-pro Station zugeordnet über das Feld `slot` im JSON. Farbe folgt der Station,
-nicht ihrem aktuellen Rang — wer beim Filtern die Farbe wechseln lässt, führt
-Leser in die Irre.
+Four stations = four categorical series colours (blue, orange, aqua, yellow),
+assigned per station via the `slot` field in the JSON. Colour follows the
+station, not its current rank — repainting survivors when a filter changes
+misleads the reader.
 
-Die Statusfarben (good/warning/serious/critical) sind davon getrennt und werden
-**nie** als Serienfarbe benutzt. Sie treten immer mit Glyph und Wort auf, damit
-die Bedeutung nie allein an der Farbe hängt.
+The status colours (good/warning/serious/critical) are kept separate and are
+**never** used as a series colour. They always appear with a glyph and a word
+so the meaning never rests on colour alone.
 
-Die Palette ist mit dem Validator geprüft (Helligkeitsband, Chroma-Untergrenze,
-CVD-Trennung, Normalsicht-Untergrenze, Kontrast) und besteht die Gates für
-Liniendiagramme in Hell und Dunkel. Bei vier Serien gleichzeitig liegen Gelb und
-Orange im all-pairs-Vergleich unter der Untergrenze — kein Vierer-Set schafft
-das im Dark Mode. Deshalb tragen alle Linien zusätzlich **Direktlabels am Ende**,
-es gibt eine Tabellenansicht, und der Muster-Modus liefert die Zweitkodierung
-über die Form. Beide Farbschemata sind eigenständig gewählt, nicht automatisch
-invertiert.
+The palette was checked with the validator (lightness band, chroma floor, CVD
+separation, normal-vision floor, contrast) and clears the gates for line charts
+in both light and dark. With four series on screen, yellow and orange fall
+below the floor in the all-pairs comparison — no four-colour set clears it in
+dark mode. Hence every line also carries **direct labels at its end**, a table
+view exists, and pattern mode supplies the secondary encoding through shape.
+Both colour schemes are chosen independently, not auto-inverted.
 
-## Grenzen und Fallstricke
+## Limits and pitfalls
 
-- **Das Archiv wird nur etwa einmal täglich neu geschrieben.** Gemessen am
-  `Last-Modified` des Blobs: am 14.08. um 08:12 UTC geschrieben und 12,5 Stunden
-  später unverändert. Der Verzug der Messwerte schwankt damit zwischen rund
-  **1 Stunde** direkt nach dem Schreibvorgang und rund **25 Stunden** davor.
-  Als Füller für die letzten Stunden ist das Archiv deshalb unbrauchbar — es
-  liefert die Langzeitkennzahlen, das 72-h-Fenster trägt das eigene Log.
-  `archive.json` schreibt den `Last-Modified` unter `upstream` mit, damit sich
-  der Rhythmus über die Tage belegen lässt statt geschätzt zu werden.
-- **Der Logger muss also wirklich laufen.** Ohne ihn ist die Verlaufskurve leer
-  bis auf das, was das Archiv beim letzten Lauf hergab — im schlechtesten Fall
-  25 Stunden alt. Die Seite zeigt das über das „Daten sind alt"-Banner an, aber
-  reparieren muss es der Cron-Job.
-- **Zwei Beschriftungen im selben JSON.** Die Verlaufsreihe (`history`) läuft
-  nach Fenster*ende*, wie die Landesseite. Der Tagesgang (`hour_profile`) läuft
-  nach Fenster*start*, weil „06 Uhr" dort die Stunde meint, in der man rausgeht.
-  `eea_archive.recent_series` rechnet dafür eigens um; ohne das lägen Archiv und
-  Eigenlog um eine Stunde versetzt aneinander.
-- **Vier Ozonstationen, nicht mehr.** Der Immissionsdatenverbund kennt acht
-  Vorarlberger Stationen (zusätzlich Höchst Gemeindeamt, Lustenau Zollamt,
-  Dornbirn Stadtstraße, Feldkirch Bärenkreuzung), vorarlberg-luft.at zeigt für
-  Ozon aber nur vier. Wer die anderen will, muss den IDV scrapen.
-- **Nur Ozon.** Die Quelle hat weitere Tabs (NO2, PM10, PM2.5, CO), und die
-  Stationsseiten liefern diese Werte gratis mit; hier bewusst ignoriert.
-- **Höhenangaben** in den Kacheln sind Näherungswerte und stammen **nicht** aus
-  der Quelle.
-- **Trend** ist der Sprung zum vorigen Log-Eintrag, nicht eine geglättete
-  Steigung. Bei einem ausgefallenen Cron-Job vergleicht er über die Lücke hinweg.
-- **Ungeprüfte Daten für 2025/2026.** `airquality-p` ist der E2a-Datensatz und
-  noch nicht qualitätsgesichert; Werte können nachträglich korrigiert werden.
-  `--refresh` holt Korrekturen mit.
-- **Das Layout der Quelle ist stabil, aber nicht garantiert.** Sie ist von 2004.
-  Stations-IDs werden aus den Detaillinks gelesen (`statATVA007.htm` →
-  `ATVA007`), was stabiler ist als Namens-Matching; fehlen die Links, greift der
-  Name als Fallback. `--strict` meldet, wenn beides bricht.
-- **Der Parser stolperte an verschachtelten Tabellen.** Die Seite wickelt die
-  Werte-Tabelle in eine Layout-Tabelle; der äußere `<tr>` enthält damit auch den
-  ersten Stations-Link und wurde als Datenzeile gelesen — Bludenz kam mit
-  `akt=None, max_1h=14` heraus, während die anderen drei stimmten. Genau dafür
-  liegt jetzt ein echter Seitenabzug als Fixture im Repo; die alte
-  handgeschriebene Fixture hatte diese Verschachtelung nicht.
+- **The archive is rewritten only about once per day.** Measured from the
+  blob's `Last-Modified`: written 2026-08-14 at 08:12 UTC and unchanged 12.5
+  hours later. The data lag therefore swings between roughly **1 hour** right
+  after a write and roughly **25 hours** just before the next. As a filler for
+  the last few hours the archive is unusable — it supplies the long-term
+  metrics, the 72 h window is carried by the local log. `archive.json` records
+  the `Last-Modified` under `upstream` so the cadence becomes evidence rather
+  than guesswork.
+- **So the logger really has to run.** Without it the series is empty apart
+  from whatever the archive held at the last run — in the worst case 25 hours
+  old. The page flags that with the "data is stale" banner, but only the cron
+  job can fix it.
+- **Two labellings in the same JSON.** The series (`history`) runs by window
+  *end*, like the regional page. The daily cycle (`hour_profile`) runs by
+  window *start*, because "06" there means the hour you head out in.
+  `eea_archive.recent_series` converts specifically for this; without it the
+  archive and the local log would sit an hour apart.
+- **Four ozone stations, no more.** The immission data network knows eight
+  Vorarlberg stations (additionally Höchst Gemeindeamt, Lustenau Zollamt,
+  Dornbirn Stadtstraße, Feldkirch Bärenkreuzung), but vorarlberg-luft.at shows
+  only four for ozone.
+- **Ozone only.** The source has further tabs (NO2, PM10, PM2.5, CO) and the
+  station pages include those values for free; deliberately ignored here.
+- **Altitudes** in the tiles are approximations and do **not** come from the
+  source.
+- **Trend** is the step to the previous log entry, not a smoothed slope. After
+  a missed cron run it compares across the gap.
+- **The source layout is stable but not guaranteed.** It is from 2004. Station
+  IDs are read from the detail links (`statATVA007.htm` → `ATVA007`), which is
+  more stable than name matching; if the links disappear the name serves as a
+  fallback. `--strict` reports when both break.
+- **The parser stumbled on nested tables.** The page wraps the values table in
+  a layout table, so the outer `<tr>` also carries the first station link and
+  was read as a data row — Bludenz came out as `akt=None, max_1h=14` while the
+  other three were fine. A real page dump now sits in the repo as a fixture for
+  exactly this; the old hand-written fixture had no such nesting.
 
-## Sackgassen (damit sie niemand zweimal geht)
+## Dead ends (so nobody walks them twice)
 
-- `data.gv.at` CKAN-API: alle Pfade unter `/katalog/api/3/action/…` antworten
-  mit 404.
-- EEA-Legacy-Schnittstelle `fme.discomap.eea.europa.eu/…/AQData_Extract.fmw`:
-  abgeschaltet, HTTP 401.
-- Der `/ParquetFile/urls`-Endpunkt der neuen EEA-API gibt für `dataset:1` und
-  `dataset:2` bei **jedem** Land 0 Treffer (auch DE und CH geprüft). Nur
-  `dataset:3` liefert etwas. Der direkte Blob-Zugriff umgeht das Problem.
-- OpenAQ v3 braucht einen kostenlosen API-Key (ohne: HTTP 401), v2 ist mit 410
-  abgeschaltet. Da OpenAQ dieselben EEA-Daten einspeist, bringt es hier nichts.
-- **Open-Meteo Air Quality** liefert keyless Ozon-Stundenwerte samt Vergangenheit
-  und Prognose, ist aber ein **CAMS-Modell**, keine Messung: systematisch 25–50
-  µg/m³ zu niedrig (Bludenz 97 statt 146), und für Wald am Arlberg greift die
-  Modellzelle einen 1978-m-Gipfel statt der Talstation. Als Messwertersatz
-  unbrauchbar. Als *Vorhersage* für morgen wäre es interessant — bisher nicht
-  eingebaut.
+- `data.gv.at` CKAN API: every path under `/katalog/api/3/action/…` returns 404.
+- The EEA legacy interface `fme.discomap.eea.europa.eu/…/AQData_Extract.fmw` is
+  switched off, HTTP 401.
+- The new EEA API's `/ParquetFile/urls` endpoint returns 0 hits for `dataset:1`
+  and `dataset:2` for **every** country (DE and CH checked too). Only
+  `dataset:3` returns anything. Direct blob access sidesteps the problem.
+- OpenAQ v3 needs a free API key (without: HTTP 401), v2 is retired with 410.
+  Since OpenAQ ingests the same EEA data, it gains nothing here.
+- **Open-Meteo Air Quality** provides keyless hourly ozone with history and
+  forecast, but it is a **CAMS model**, not a measurement: systematically
+  25–50 µg/m³ too low (Bludenz 97 instead of 146), and for Wald am Arlberg the
+  model cell picks a 1978 m summit rather than the valley station. Useless as a
+  substitute for measurements. As a *forecast* it would be interesting — not
+  wired up so far.
 
-## Nächste Schritte (offen)
+## Open next steps
 
-- Open-Meteo als Ozon-**Prognose** für morgen einbauen (Bias-korrigiert gegen
-  die eigene Messreihe — dafür sind jetzt bis zu 39 Jahre Referenz da).
-- ESP32-Ampel mit RGB-LED, die `data.json` von einem kleinen Dienst holt.
-- Home-Assistant-Sensor.
-- Die vier zusätzlichen IDV-Stationen mitnehmen.
-- Eigene Sensorik: für den Sportzweck reicht ein guter elektrochemischer Sensor
-  mit NO2-Korrektur (Alphasense OX-B431 misst OX = O3 + NO2 und braucht einen
-  zweiten Sensor zum Trennen). Absolutgenauigkeit gegen die amtlichen Stationen
-  ist mit billigen Sensoren schwierig; UV-Absorption bei 254 nm ist das
-  Referenzverfahren, das auch die Behörde nutzt.
+- Wire Open-Meteo in as an ozone **forecast** for tomorrow (bias-corrected
+  against the local record — there are now up to 39 years of reference).
+- ESP32 traffic light with an RGB LED pulling `data.json` from a small service.
+- Home Assistant sensor.
+- Add the four extra stations from the immission data network.
+- Own sensing: for the sports use case a good electrochemical sensor with NO2
+  correction is enough (the Alphasense OX-B431 measures OX = O3 + NO2 and needs
+  a second sensor to separate them). Absolute accuracy against the official
+  stations is hard with cheap sensors; UV absorption at 254 nm is the reference
+  method the authorities use.
 
-## Quellen
+## Sources
 
-- vorarlberg-luft.at, `tab1O3.htm` (Land Vorarlberg, Umweltinstitut)
-- EEA Air Quality e-Reporting, Parquet-Blobs (E2a / E1a / AIRBASE)
-- Umweltbundesamt Österreich, Immissionsdatenverbund
-  (`luft.umweltbundesamt.at/pub/map_chart/index.pl`) — für die Stationscodes
+- vorarlberg-luft.at, `tab1O3.htm` (Province of Vorarlberg, Umweltinstitut)
+- EEA Air Quality e-Reporting, Parquet blobs (E2a / E1a / AIRBASE)
+- Umweltbundesamt Austria, immission data network
+  (`luft.umweltbundesamt.at/pub/map_chart/index.pl`) — for the station codes
 - WHO global air quality guidelines 2021, Table 3.10
-- IARC-Monographien zur Krebseinstufung (Ozon ist **nicht** als krebserregend
-  eingestuft — es ist ein Reizgas, kein DNA-schädigendes Karzinogen; die
-  Langzeitrisiken laufen über oxidativen Stress und Entzündung)
-- Jerrett et al. 2009 (ACS-Studie, Atemwegssterblichkeit); Children's Health
-  Study (Lungenwachstum und Neu-Asthma bei Kindern)
+- IARC monographs on carcinogenicity (ozone is **not** classified as
+  carcinogenic — it is an irritant gas, not a DNA-damaging carcinogen; the
+  long-term risks run through oxidative stress and inflammation)
+- Jerrett et al. 2009 (ACS study, respiratory mortality); Children's Health
+  Study (lung growth and new-onset asthma in children)

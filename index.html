@@ -1,22 +1,21 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ozon Vorarlberg · Trainingsampel</title>
+<title>Ozone Vorarlberg · Training Light</title>
 <style>
 /* ---------------------------------------------------------------------------
-   Farbrollen. Hell auf :root, Dunkel doppelt deklariert: einmal fuer die
-   OS-Einstellung, einmal fuer den Theme-Umschalter, damit der Umschalter in
-   beide Richtungen gewinnt.
+   Colour roles. Light on :root, dark declared twice: once for the OS setting,
+   once for the theme switch, so the switch wins in both directions.
 
-   Serienfarben = kategoriale Slots 1..4 (blau, orange, aqua, gelb). Feste
-   Zuordnung pro Station ueber das Feld "slot" aus dem Scraper — Farbe folgt
-   der Station, nie ihrem aktuellen Rang.
+   Series colours = categorical slots 1..4 (blue, orange, aqua, yellow). Fixed
+   assignment per station via the "slot" field from the scraper — colour
+   follows the station, never its current rank.
 
-   Status-Farben (good/warning/serious/critical) sind reserviert und werden
-   NIE als Serienfarbe benutzt. Sie treten immer mit Glyph + Wort auf, nie als
-   Farbe allein.
+   Status colours (good/warning/serious/critical) are reserved and are NEVER
+   used as a series colour. They always appear with a glyph and a word, never
+   as colour alone.
 --------------------------------------------------------------------------- */
 :root{
   color-scheme: light;
@@ -50,8 +49,8 @@
 }
 
 *{box-sizing:border-box}
-/* Muss !important sein: .legend und .hero setzen display:flex und wuerden das
-   hidden-Attribut sonst ueberstimmen. */
+/* Has to be !important: .legend and .hero set display:flex and would
+   otherwise override the hidden attribute. */
 [hidden]{display:none!important}
 html,body{margin:0}
 body{
@@ -62,7 +61,7 @@ body{
 }
 .wrap{max-width:1120px;margin:0 auto}
 
-/* --- Kopf ---------------------------------------------------------------- */
+/* --- Header -------------------------------------------------------------- */
 .top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px;margin-bottom:4px}
 h1{font-size:23px;line-height:1.2;margin:0;letter-spacing:-.01em;font-weight:650}
 .top .spacer{flex:1 1 auto}
@@ -70,7 +69,7 @@ h1{font-size:23px;line-height:1.2;margin:0;letter-spacing:-.01em;font-weight:650
 .stamp b{color:var(--ink-1);font-weight:600}
 .stale{color:var(--critical);font-weight:600}
 
-/* --- Filterzeile: eine Reihe, ueber allem was sie einschraenkt ----------- */
+/* --- Filter row: one row, above everything it scopes --------------------- */
 .controls{
   display:flex;flex-wrap:wrap;gap:8px;align-items:center;
   padding-bottom:18px;margin-bottom:22px;border-bottom:1px solid var(--hairline);
@@ -87,7 +86,7 @@ button{font:inherit;color:var(--ink-2);background:none;border:0;cursor:pointer}
   border-color:var(--ink-1);font-weight:600}
 :focus-visible{outline:2px solid var(--series-1);outline-offset:2px;border-radius:4px}
 
-/* --- Karten ------------------------------------------------------------- */
+/* --- Cards --------------------------------------------------------------- */
 .card{
   background:var(--surface-1);border:1px solid var(--hairline);
   border-radius:14px;box-shadow:var(--shadow);
@@ -129,7 +128,7 @@ button{font:inherit;color:var(--ink-2);background:none;border:0;cursor:pointer}
     padding-top:16px;flex:1 1 100%}
 }
 
-/* Status-Glyphen: Farbe trägt nie allein die Bedeutung. */
+/* Status glyphs: colour never carries the meaning on its own. */
 .glyph{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
   width:1.05em;height:1.05em;font-size:.72em;font-weight:800;border-radius:50%;
   border:2px solid currentColor;line-height:1}
@@ -137,7 +136,7 @@ button{font:inherit;color:var(--ink-2);background:none;border:0;cursor:pointer}
 .s-serious{color:var(--serious)} .s-critical{color:var(--critical)}
 .s-unknown{color:var(--ink-muted)}
 
-/* Stationskacheln */
+/* Station tiles */
 .tiles{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));
        margin-bottom:20px}
 .tile{padding:15px 17px 13px;display:flex;flex-direction:column;gap:0}
@@ -158,14 +157,14 @@ button{font:inherit;color:var(--ink-2);background:none;border:0;cursor:pointer}
   display:flex;justify-content:space-between;gap:10px}
 .tile .meta b{color:var(--ink-2);font-weight:600;font-variant-numeric:tabular-nums}
 
-/* Diagramme */
+/* Charts */
 .chartcard{margin-bottom:20px;overflow:hidden}
 .plotwrap{padding:6px 18px 14px;position:relative}
 .plotwrap.loading{opacity:.55}
 .plotwrap > svg{display:block;width:100%;overflow:visible}
 .spark svg{display:block;width:100%}
-/* Legenden-Keys sind kleine Inline-SVGs und duerfen NICHT auf 100 % wachsen —
-   sonst schieben sie sich ueber ihr eigenes Label. */
+/* Legend keys are small inline SVGs and must NOT grow to 100% — otherwise
+   they slide over their own label. */
 .legend svg,.tip svg{display:block;flex:0 0 auto;width:20px;height:8px}
 svg text{fill:var(--ink-muted);font-size:11px}
 svg .tick{font-variant-numeric:tabular-nums}
@@ -178,7 +177,7 @@ svg .tick{font-variant-numeric:tabular-nums}
 .cross{stroke:var(--ink-1);stroke-width:1;opacity:.4;shape-rendering:crispEdges}
 .focusdot{stroke:var(--surface-1);stroke-width:2}
 
-/* Legende: Linien-Keys, weil die Marke eine Linie ist */
+/* Legend: line keys, because the mark is a line */
 .legend{display:flex;flex-wrap:wrap;gap:7px 18px;padding:0 18px 15px;font-size:12.5px}
 .metricrow{display:flex;padding:11px 18px 4px}
 .legend button span:not(.k){white-space:nowrap}
@@ -203,7 +202,7 @@ svg .tick{font-variant-numeric:tabular-nums}
 .tip .r .n{color:var(--ink-2);font-size:12px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
-/* Leerstand */
+/* Empty state */
 .empty{padding:34px 22px 38px;text-align:center;color:var(--ink-2)}
 .empty .big{font-size:15px;font-weight:640;color:var(--ink-1);margin-bottom:7px}
 .empty code{background:var(--wash);padding:2px 6px;border-radius:5px;font-size:12.5px}
@@ -211,7 +210,7 @@ svg .tick{font-variant-numeric:tabular-nums}
   max-width:280px;margin:14px auto 0}
 .bar i{display:block;height:100%;background:var(--series-1);border-radius:3px}
 
-/* Tabellen */
+/* Tables */
 .tablecard{margin-bottom:20px}
 .scroll{overflow-x:auto;padding:0 18px 16px}
 table{border-collapse:collapse;width:100%;font-size:13px}
@@ -226,7 +225,7 @@ tbody th{font-weight:600;text-align:left;color:var(--ink-1)}
 .hist{max-height:340px;overflow-y:auto}
 .hist thead th{position:sticky;top:0;background:var(--surface-1);z-index:1}
 
-/* Referenzwerte */
+/* Reference values */
 .ref{padding:15px 18px 17px;font-size:13px;color:var(--ink-2);margin-bottom:20px}
 .ref dl{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;margin:9px 0 0}
 .ref dt{font-weight:640;color:var(--ink-1);font-variant-numeric:tabular-nums;
@@ -244,13 +243,13 @@ footer a{color:var(--ink-2)}
 
   <div class="top">
     <div>
-      <h1>Ozon Vorarlberg · Trainingsampel</h1>
-      <p class="stamp" id="stamp">Daten werden geladen…</p>
+      <h1>Ozone Vorarlberg · Training Light</h1>
+      <p class="stamp" id="stamp">Loading data…</p>
     </div>
     <div class="spacer"></div>
-    <div class="group" role="group" aria-label="Farbschema">
-      <button class="seg" data-theme-set="light" aria-pressed="false">Hell</button>
-      <button class="seg" data-theme-set="dark" aria-pressed="false">Dunkel</button>
+    <div class="group" role="group" aria-label="Colour scheme">
+      <button class="seg" data-theme-set="light" aria-pressed="false">Light</button>
+      <button class="seg" data-theme-set="dark" aria-pressed="false">Dark</button>
       <button class="seg" data-theme-set="system" aria-pressed="true">System</button>
     </div>
   </div>
@@ -260,39 +259,39 @@ footer a{color:var(--ink-2)}
     <div id="bannerText"></div>
   </div>
 
-  <!-- Eine Filterzeile, oberhalb von allem was sie einschraenkt. -->
+  <!-- One filter row, above everything it scopes. -->
   <div class="controls">
-    <span class="lab">Zeitraum</span>
-    <div class="group" role="group" aria-label="Zeitraum">
+    <span class="lab">Range</span>
+    <div class="group" role="group" aria-label="Range">
       <button class="seg" data-range="24" aria-pressed="true">24 h</button>
       <button class="seg" data-range="48" aria-pressed="false">48 h</button>
       <button class="seg" data-range="72" aria-pressed="false">72 h</button>
     </div>
-    <span class="lab" style="margin-left:10px">Ansicht</span>
-    <button class="ghost" id="tableToggle" aria-pressed="false">Tabelle</button>
+    <span class="lab" style="margin-left:10px">View</span>
+    <button class="ghost" id="tableToggle" aria-pressed="false">Table</button>
     <button class="ghost" id="patternToggle" aria-pressed="false"
-            title="Linien zusätzlich über Strichmuster unterscheiden">Muster</button>
+            title="Also distinguish lines by dash pattern">Pattern</button>
   </div>
 
   <section class="card hero" id="hero" aria-labelledby="heroH">
-    <h2 id="heroH" class="vh">Gesamtbewertung</h2>
+    <h2 id="heroH" class="vh">Overall assessment</h2>
     <div class="verdict">
-      <div class="k" id="heroKey">Lage jetzt</div>
+      <div class="k" id="heroKey">Situation now</div>
       <div class="word" id="heroWord">–</div>
       <p class="advice" id="heroAdvice"></p>
     </div>
     <div class="pick">
-      <div class="k">Sauberste Station jetzt</div>
+      <div class="k">Cleanest station now</div>
       <div class="v" id="heroPick">–</div>
       <div class="s" id="heroPickSub"></div>
     </div>
     <div class="pick">
-      <div class="k">Bestes Zeitfenster</div>
+      <div class="k">Best time window</div>
       <div class="v" id="heroWindow">–</div>
       <div class="s" id="heroWindowSub"></div>
     </div>
     <div class="pick" id="heroCtxWrap" hidden>
-      <div class="k">Heute im Langzeitvergleich</div>
+      <div class="k">Today vs. the long run</div>
       <div class="v" id="heroCtx">–</div>
       <div class="s" id="heroCtxSub"></div>
     </div>
@@ -301,7 +300,7 @@ footer a{color:var(--ink-2)}
   <div class="tiles" id="tiles"></div>
 
   <section class="card chartcard" aria-labelledby="chH">
-    <h2 id="chH">Verlauf · aktueller 1-h-Mittelwert</h2>
+    <h2 id="chH">Series · current 1-hour mean</h2>
     <p class="note" id="chNote"></p>
     <div class="plotwrap" id="plotwrap">
       <svg id="chart" role="img" aria-labelledby="chH chDesc"></svg>
@@ -313,7 +312,7 @@ footer a{color:var(--ink-2)}
   </section>
 
   <section class="card chartcard" id="profCard" aria-labelledby="prH" hidden>
-    <h2 id="prH">Tagesgang · Median je Stunde</h2>
+    <h2 id="prH">Daily cycle · median per hour</h2>
     <p class="note" id="prNote"></p>
     <div class="plotwrap">
       <svg id="prof" role="img" aria-labelledby="prH prDesc"></svg>
@@ -323,16 +322,16 @@ footer a{color:var(--ink-2)}
   </section>
 
   <section class="card chartcard" id="yearCard" aria-labelledby="yrH" hidden>
-    <h2 id="yrH">Jahresreihe</h2>
+    <h2 id="yrH">Annual series</h2>
     <p class="note" id="yrNote"></p>
-    <div class="metricrow" role="group" aria-label="Kennzahl">
+    <div class="metricrow" role="group" aria-label="Metric">
       <div class="group">
         <button class="seg" data-metric="peak_season_mean" aria-pressed="true">
-          Peak-Season-Mittel</button>
+          Peak-season mean</button>
         <button class="seg" data-metric="days_8h_over_120" aria-pressed="false">
-          Tage über EU-Zielwert</button>
+          Days above EU target</button>
         <button class="seg" data-metric="max_1h" aria-pressed="false">
-          Höchster 1-h-Wert</button>
+          Highest 1-hour value</button>
       </div>
     </div>
     <div class="plotwrap">
@@ -344,28 +343,28 @@ footer a{color:var(--ink-2)}
   </section>
 
   <section class="card tablecard" id="tableCard" hidden aria-labelledby="tbH">
-    <h2 id="tbH">Tabellenansicht</h2>
-    <p class="note">Dieselben Werte wie in den Diagrammen, ohne Farbcodierung.</p>
+    <h2 id="tbH">Table view</h2>
+    <p class="note">The same values as in the charts, without colour coding.</p>
     <div class="scroll"><table id="tblNow"></table></div>
     <div class="scroll hist"><table id="tblHist"></table></div>
   </section>
 
   <section class="card ref" aria-labelledby="refH">
-    <h2 id="refH" style="padding:0 0 2px">Wonach hier bewertet wird</h2>
+    <h2 id="refH" style="padding:0 0 2px">What the assessment is based on</h2>
     <p style="margin:8px 0 0">
-      Zwei getrennte Achsen, absichtlich nicht vermischt. Die
-      <b style="color:var(--ink-1)">Trainings-Ampel</b> läuft auf dem
-      <b style="color:var(--ink-1)">aktuellen 1-h-Wert</b> — das ist, was du
-      gerade atmest. Die <b style="color:var(--ink-1)">Tagesbewertung</b> läuft
-      auf dem <b style="color:var(--ink-1)">Tagesmaximum des gleitenden
-      8-h-Mittels</b> und ist der gesundheitliche Kontext des Tages.
+      Two separate axes, deliberately not mixed. The
+      <b style="color:var(--ink-1)">training light</b> runs on the
+      <b style="color:var(--ink-1)">current 1-hour value</b> — that is what you
+      are breathing right now. The
+      <b style="color:var(--ink-1)">daily assessment</b> runs on the
+      <b style="color:var(--ink-1)">daily maximum of the running 8-hour
+      mean</b> and is the health context of the day.
     </p>
     <dl id="scaleList"></dl>
     <p style="margin:14px 0 0;font-size:12.5px;color:var(--ink-muted)">
-      Die 100er- und 120er-Marke der Trainings-Skala sind von den
-      8-h-Richtwerten geliehen und damit eine pragmatische Skala, kein
-      Rechtswert. 180 µg/m³ ist die echte österreichische
-      Informationsschwelle (1-h-Mittel).
+      The 100 and 120 marks of the training scale are borrowed from the 8-hour
+      guidelines, making it a pragmatic scale rather than a legal limit.
+      180 µg/m³ is the actual Austrian information threshold (1-hour mean).
     </p>
     <dl id="thrList" style="margin-top:14px"></dl>
   </section>
@@ -373,47 +372,48 @@ footer a{color:var(--ink-2)}
   <footer>
     <p style="margin:0 0 10px;padding:11px 14px;border-radius:10px;
               background:var(--wash);color:var(--ink-2);font-size:12.5px">
-      <b style="color:var(--ink-1)">Privates Projekt, keine amtliche Warnung.</b>
-      Diese Seite wird von einer Privatperson betrieben und ist keine
-      Veröffentlichung des Landes Vorarlberg. Die Trainings-Ampel ist eine
-      eigene, pragmatische Einordnung und kein Rechtswert. Bei
-      Grenzwertüberschreitungen und im Zweifelsfall gilt allein
+      <b style="color:var(--ink-1)">Personal project, not an official
+      warning.</b> This page is run by a private individual and is not a
+      publication of the Province of Vorarlberg. The training light is an own,
+      pragmatic reading and carries no legal weight. For threshold breaches
+      and in any case of doubt, only
       <a href="https://www.vorarlberg-luft.at/tab1O3.htm" target="_blank"
-      rel="noopener">vorarlberg-luft.at</a>. Wer Atemwegsbeschwerden hat, fragt
-      besser Ärztin oder Arzt als ein Dashboard.
+      rel="noopener">vorarlberg-luft.at</a> applies. Anyone with respiratory
+      complaints is better served by a doctor than by a dashboard.
     </p>
-    Quelle: <a href="https://www.vorarlberg-luft.at/tab1O3.htm" target="_blank"
-    rel="noopener">vorarlberg-luft.at</a> (Land Vorarlberg, Umweltinstitut) ·
-    alle Werte in µg/m³ · Zeiten in lokaler Zeit (Europe/Vienna).<br>
-    Die Quelle veröffentlicht keine Zahlen-Historie — der Verlauf hier wird vom
-    Scraper selbst mitgeschrieben und beginnt mit dem ersten Log-Eintrag.
-    Höhenangaben sind Näherungswerte und stammen nicht aus der Quelle.<br>
-    Langzeitdaten: EEA Air Quality e-Reporting (E2a/E1a/AIRBASE).
+    Source: <a href="https://www.vorarlberg-luft.at/tab1O3.htm" target="_blank"
+    rel="noopener">vorarlberg-luft.at</a> (Province of Vorarlberg,
+    Umweltinstitut) · all values in µg/m³ · times in local time
+    (Europe/Vienna).<br>
+    The source publishes no numeric history — the recent series here is logged
+    by the scraper itself; older hours come from the EEA archive.
+    Altitudes are approximations and do not come from the source.<br>
+    Long-term data: EEA Air Quality e-Reporting (E2a/E1a/AIRBASE).
   </footer>
 </div>
 
 <script>
 "use strict";
 /* ==========================================================================
-   Zustand
+   State
    ========================================================================== */
 const SLOT_VAR = {1:"--series-1", 2:"--series-2", 3:"--series-3", 4:"--series-4"};
-const DASH     = {1:"", 2:"7 4", 3:"2 3", 4:"11 4 2 4"};   // nur wenn "Muster" an
+const DASH     = {1:"", 2:"7 4", 3:"2 3", 4:"11 4 2 4"};   // only in pattern mode
 const GLYPH    = {good:"✓", warning:"!", serious:"!", critical:"✕", unknown:"?"};
-const STATUS_DE= {good:"frei", warning:"erhöht", serious:"deutlich erhöht",
-                  critical:"Informationsschwelle", unknown:"keine Daten"};
+const STATUS_EN= {good:"free", warning:"elevated", serious:"clearly elevated",
+                  critical:"information threshold", unknown:"no data"};
 
 const state = {
   data: null,
   rangeH: 24,
-  hidden: new Set(),      // ausgeblendete Stations-IDs (Legende)
+  hidden: new Set(),      // hidden station IDs (legend)
   pattern: false,
   table: false,
   metric: "peak_season_mean",
-  focus: null,            // Index im gefilterten Verlauf
+  focus: null,            // index into the filtered series
 };
 
-/* --------------------------------------------------------------- Helfer --- */
+/* --------------------------------------------------------------- Helpers -- */
 const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
 
@@ -453,16 +453,38 @@ function statusChip(status, word){
 }
 
 /* ==========================================================================
-   Laden
+   Loading
    ========================================================================== */
+/* Where the data lives.
+
+   The published site is served from `main`, but the readings sit on their own
+   `data` branch — the logger pushes there three times an hour without ever
+   touching the site or triggering a Pages rebuild. raw.githubusercontent.com
+   serves that branch with permissive CORS, so the browser reads it directly.
+
+   Local files win when present, so a checkout with its own data.json still
+   works offline and the demo folder keeps behaving. */
+const DATA_BRANCH =
+  "https://raw.githubusercontent.com/pasrom/ozon-vorarlberg/data/";
+
+async function fetchJSON(name){
+  let last = null;
+  for (const url of [name, DATA_BRANCH + name]){
+    try{
+      const r = await fetch(url, {cache:"no-store"});
+      if (r.ok) return await r.json();
+      last = new Error("HTTP " + r.status + " for " + url);
+    }catch(e){ last = e; }
+  }
+  throw last || new Error("no source responded for " + name);
+}
+
 async function load(initial){
   const wrap = $("plotwrap");
-  if (!initial) wrap.classList.add("loading");        // Rahmen halten, kein Skeleton
+  if (!initial) wrap.classList.add("loading");        // hold the frame, no skeleton
   try{
-    const r = await fetch("data.json", {cache:"no-store"});
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    const d = await r.json();
-    if (!d || !Array.isArray(d.stations)) throw new Error("unerwartetes Format");
+    const d = await fetchJSON("data.json");
+    if (!d || !Array.isArray(d.stations)) throw new Error("unexpected format");
     state.data = d;
     banner(d);
     render();
@@ -478,10 +500,10 @@ function banner(d){
   t.textContent = "";
   if (d.demo){
     g.textContent = "!"; g.className = "g s-warning";
-    t.appendChild(el("b", {text:"Demo-Daten."}));
+    t.appendChild(el("b", {text:"Demo data."}));
     t.appendChild(document.createTextNode(
-      " Diese Werte sind synthetisch und zeigen nur, wie das Dashboard aussieht. " +
-      "Für echte Werte: "));
+      " These values are synthetic and only show what the dashboard looks " +
+      "like. For real values: "));
     t.appendChild(el("code", {text:"python3 ozon_vorarlberg.py --log --out data.json"}));
     b.classList.add("show");
     return;
@@ -490,10 +512,10 @@ function banner(d){
   const ageH = st ? (Date.now() - st.getTime()) / 36e5 : null;
   if (ageH !== null && ageH > 3){
     g.textContent = "!"; g.className = "g s-serious";
-    t.appendChild(el("b", {text:"Daten sind alt."}));
+    t.appendChild(el("b", {text:"Data is stale."}));
     t.appendChild(document.createTextNode(
-      ` Der Stand der Quelle liegt ${Math.round(ageH)} Stunden zurück. ` +
-      "Läuft der Logger noch?"));
+      ` The source is ${Math.round(ageH)} hours behind. ` +
+      "Is the logger still running?"));
     b.classList.add("show");
   } else {
     b.classList.remove("show");
@@ -501,23 +523,23 @@ function banner(d){
 }
 
 function noData(err){
-  $("stamp").textContent = "data.json nicht erreichbar.";
+  $("stamp").textContent = "data.json unreachable.";
   const b = $("banner"), t = $("bannerText");
   $("bannerGlyph").textContent = "!";
   $("bannerGlyph").className = "g s-serious";
   t.textContent = "";
-  t.appendChild(el("b", {text:"Keine Daten geladen."}));
+  t.appendChild(el("b", {text:"No data loaded."}));
   t.appendChild(document.createTextNode(
-    ` (${err.message}) Das Dashboard liest data.json aus demselben Ordner. ` +
-    "Per Doppelklick geöffnet blockiert der Browser das — starte einen " +
-    "Mini-Server: "));
+    ` (${err.message}) The dashboard reads data.json from the same folder, ` +
+    "falling back to the data branch on GitHub. Opened by double-click the " +
+    "browser blocks both — start a small server: "));
   t.appendChild(el("code", {text:"python3 -m http.server 8000"}));
-  t.appendChild(document.createTextNode(" und öffne http://localhost:8000/ozon_dashboard.html"));
+  t.appendChild(document.createTextNode(" and open http://localhost:8000/ozon_dashboard.html"));
   b.classList.add("show");
   $("chart").setAttribute("height", "0");
   $("legend").hidden = true;
-  showEmpty("Kein Verlauf geladen.",
-    "Sobald data.json erreichbar ist, erscheint hier die Kurve.", 0);
+  showEmpty("No series loaded.",
+    "The curve appears here as soon as data.json is reachable.", 0);
 }
 
 /* ==========================================================================
@@ -537,8 +559,8 @@ function render(){
   renderRef(d);
 }
 
-/* Archiv-Station nach ID. Fehlt archive.json, liefert das ueberall null und
-   alle Archiv-Abschnitte bleiben ausgeblendet. */
+/* Archive station by ID. Without archive.json this returns null everywhere
+   and all archive sections stay hidden. */
 function arcStations(d){
   return ((d.archive && d.archive.available) ? d.archive.stations : []) || [];
 }
@@ -548,42 +570,42 @@ function arcById(d, id){
 
 const METRICS = {
   peak_season_mean: {
-    label: "Peak-Season-Mittel", unit: "µg/m³",
-    ref: [[60, "WHO-Langfristziel 60"]],
-    note: "Mittel der 8-h-Tagesmaxima über die sechs ozonreichsten Monate " +
-          "des Jahres — die WHO-Langzeitkennzahl.",
+    label: "Peak-season mean", unit: "µg/m³",
+    ref: [[60, "WHO long-term goal 60"]],
+    note: "Mean of the daily 8-hour maxima over the six most ozone-rich " +
+          "months of the year — the WHO long-term metric.",
   },
   days_8h_over_120: {
-    label: "Tage über EU-Zielwert", unit: "Tage",
-    ref: [[25, "EU: max. 25 Tage im 3-Jahres-Mittel"]],
-    note: "Tage, an denen das Tagesmaximum des gleitenden 8-h-Mittels über " +
-          "120 µg/m³ lag.",
+    label: "Days above EU target", unit: "days",
+    ref: [[25, "EU: max. 25 days averaged over 3 years"]],
+    note: "Days on which the daily maximum of the running 8-hour mean " +
+          "exceeded 120 µg/m³.",
   },
   max_1h: {
-    label: "Höchster 1-h-Wert", unit: "µg/m³",
-    ref: [[180, "Informationsschwelle 180"]],
-    note: "Der höchste einzelne Stundenmittelwert des Jahres.",
+    label: "Highest 1-hour value", unit: "µg/m³",
+    ref: [[180, "Information threshold 180"]],
+    note: "The single highest hourly mean of the year.",
   },
 };
 
 function renderStamp(d){
   const s = $("stamp"); s.textContent = "";
-  s.appendChild(document.createTextNode("Stand der Quelle: "));
-  s.appendChild(el("b", {text: d.source_time_raw || "unbekannt"}));
+  s.appendChild(document.createTextNode("Source as of: "));
+  s.appendChild(el("b", {text: d.source_time_raw || "unknown"}));
   const st = parseTs(d.source_time);
   if (st){
     const mins = Math.round((Date.now() - st.getTime()) / 6e4);
     const age = mins < 90 ? `${Math.max(0,mins)} min`
                           : `${Math.round(mins/60)} h`;
     const span = el("span", {class: mins > 180 ? "stale" : ""},
-      ` · vor ${age}`);
+      ` · ${age} ago`);
     s.appendChild(span);
   }
   const h = d.history || {points:0, span_hours:0};
   s.appendChild(document.createTextNode(
-    ` · eigene Historie: ${h.points} ` +
-    (h.points === 1 ? "Messpunkt" : "Messpunkte") +
-    ` über ${h.span_hours} h`));
+    ` · series: ${h.points} ` +
+    (h.points === 1 ? "reading" : "readings") +
+    ` over ${h.span_hours} h`));
 }
 
 function renderHero(d){
@@ -591,57 +613,56 @@ function renderHero(d){
   const status = su.overall_training_status || "unknown";
   const worst = (d.stations || []).find(s => s.short === su.worst);
   $("heroKey").textContent = worst
-    ? `Lage jetzt · höchste Station (${worst.short})`
-    : "Lage jetzt";
+    ? `Situation now · highest station (${worst.short})`
+    : "Situation now";
   const w = $("heroWord"); w.textContent = "";
   w.className = "word s-" + status;
   w.appendChild(el("span", {class:"glyph", "aria-hidden":"true",
                             text: GLYPH[status] || "?"}));
   w.appendChild(el("span", {class:"t",
     style:"color:var(--ink-1)",
-    text: worst && worst.training ? worst.training.word : STATUS_DE[status]}));
+    text: worst && worst.training ? worst.training.word : STATUS_EN[status]}));
 
   let advice = worst && worst.training ? worst.training.advice : "";
   if (su.any_info_threshold){
-    advice = "Informationsschwelle von 180 µg/m³ erreicht — das ist der " +
-             "offizielle Warnwert. Outdoor-Sport heute absagen.";
+    advice = "Information threshold of 180 µg/m³ reached — that is the " +
+             "official warning level. Cancel outdoor sport today.";
   }
   $("heroAdvice").textContent = advice +
     (su.eu_target_exceeded_at && su.eu_target_exceeded_at.length
-      ? "  EU-Zielwert (8 h) überschritten an: " +
+      ? "  EU target (8 h) exceeded at: " +
         su.eu_target_exceeded_at.join(", ") + "."
       : "");
 
   $("heroPick").textContent = su.cleanest || "–";
   $("heroPickSub").textContent = su.cleanest_value !== null &&
     su.cleanest_value !== undefined
-      ? `${su.cleanest_value} µg/m³ · höchste Station ${su.worst_value} µg/m³`
-      : "keine Werte";
+      ? `${su.cleanest_value} µg/m³ · highest station ${su.worst_value} µg/m³`
+      : "no values";
 
-  // Bestes Fenster: Archiv (23 Jahre) schlaegt selbst geloggte Historie
-  // schlaegt Faustregel.
+  // Best window: archive beats locally logged history beats rule of thumb.
   const arc = d.archive;
   const prof = d.hour_profile || {};
   const abw = arc && arc.available ? arc.overall_best_window : null;
   const bw = prof.best_window;
   const hw = $("heroWindow"), hs = $("heroWindowSub");
   if (abw){
-    hw.textContent = `${pad2(abw.from_hour)}–${pad2(abw.to_hour)} Uhr`;
+    hw.textContent = `${pad2(abw.from_hour)}–${pad2(abw.to_hour)}`;
     const yrs = arc.years || [];
-    hs.textContent = `Median ${abw.mean} µg/m³ · aus ${yrs[0]}–${yrs[yrs.length-1]}` +
-      ` gemessen (${Math.round((arc.total_hours||0)/1000)} Tsd. Stunden)`;
+    hs.textContent = `Median ${abw.mean} µg/m³ · measured ${yrs[0]}–${yrs[yrs.length-1]}` +
+      ` (${Math.round((arc.total_hours||0)/1000)}k hours)`;
   } else if (bw){
-    hw.textContent = `${pad2(bw.from_hour)}–${pad2(bw.to_hour)} Uhr`;
-    hs.textContent = `Median ${bw.mean} µg/m³ · aus ${prof.n_days} geloggten Tagen`;
+    hw.textContent = `${pad2(bw.from_hour)}–${pad2(bw.to_hour)}`;
+    hs.textContent = `Median ${bw.mean} µg/m³ · from ${prof.n_days} logged days`;
   } else {
-    hw.textContent = "05–09 Uhr";
-    hs.textContent = "Physikalische Faustregel · eigenes Profil ab 2 Tagen " +
-      "Historie" + (prof.n_days ? ` (bisher ${prof.n_days})` : "") +
-      " — oder eea_archive.py --build für 23 Jahre";
+    hw.textContent = "05–09";
+    hs.textContent = "Rule of thumb · own profile after 2 days of history" +
+      (prof.n_days ? ` (so far ${prof.n_days})` : "") +
+      " — or eea_archive.py --build for the full record";
   }
 
-  // Heute im Langzeitvergleich: die am hoechsten belastete Station fuehrt,
-  // konsistent mit dem Hero-Urteil darueber.
+  // Today vs. the long run: the most loaded station leads, consistent with
+  // the hero verdict above it.
   const ctxs = arcStations(d).map(s => s.context)
     .filter(c => c && c.percentile !== null && c.percentile !== undefined);
   const wrap = $("heroCtxWrap");
@@ -649,11 +670,11 @@ function renderHero(d){
     const top = ctxs.reduce((a,b) => b.percentile > a.percentile ? b : a);
     const st = arcStations(d).find(s => s.context === top);
     wrap.hidden = false;
-    $("heroCtx").textContent = `${top.percentile}. Perzentil`;
+    $("heroCtx").textContent = `${top.percentile}th percentile`;
     $("heroCtxSub").textContent =
-      `${st ? st.short + " " : ""}${top.today_max_1h} µg/m³ · Median ` +
-      `${top.median}, Höchstwert ${top.max} für ${pad2(top.day)}.${pad2(top.month)}. ` +
-      `±${top.window_days} Tage seit ${(top.years||[])[0]}`;
+      `${st ? st.short + " " : ""}${top.today_max_1h} µg/m³ · median ` +
+      `${top.median}, record ${top.max} for ${pad2(top.day)}.${pad2(top.month)}. ` +
+      `±${top.window_days} days since ${(top.years||[])[0]}`;
   } else {
     wrap.hidden = true;
   }
@@ -671,7 +692,7 @@ function renderTiles(d){
     hd.appendChild(el("span", {class:"nm", text: s.short}));
     hd.appendChild(el("span", {class:"alt",
       text: (s.altitude_m_approx ? `ca. ${s.altitude_m_approx} m` : "") +
-            (s.kind === "hoehe" ? " · Höhenlage" : "")}));
+            (s.kind === "hoehe" ? " · high altitude" : "")}));
     tile.appendChild(hd);
 
     const val = el("div", {class:"val"});
@@ -715,7 +736,7 @@ function renderTiles(d){
   }
 }
 
-/* ------------------------------------------------------- Verlaufsfenster --- */
+/* ----------------------------------------------------------- Series window -- */
 function sliceHistory(d){
   const h = d.history || {t:[], akt_1h:{}};
   const times = (h.t || []).map(parseTs);
@@ -742,13 +763,13 @@ function sliceHistory(d){
   };
 }
 
-/* -------------------------------------------------------------- Diagramm --- */
-/* Der rechte Rand gehoert exklusiv den Serien-Endlabels. Schwellwert-Labels
-   sitzen dagegen INNEN am linken Rand mit einem Halo in Flaechenfarbe — im
-   gemeinsamen Gutter haben sich beide gegenseitig ueberschrieben. */
+/* ------------------------------------------------------------------ Chart -- */
+/* The right margin belongs exclusively to the series end labels. Threshold
+   labels instead sit INSIDE at the left edge with a halo in the surface
+   colour — sharing one gutter, the two overwrote each other. */
 const PAD = {t:22, r:104, b:30, l:42};
 const PLOT_H = 250;
-const LAB_GAP = 14;      // Mindestabstand gestapelter Endlabels
+const LAB_GAP = 14;      // minimum spacing of stacked end labels
 
 function thrLabel(s, x, y, text){
   const t = svg("text", {class:"thrlab", x:x, y:y, text:text});
@@ -788,13 +809,13 @@ function renderChart(win){
   if (win.times.length < 2 || !drawable.length){
     const pts = win.times.length;
     showEmpty(
-      pts <= 1 ? "Die Historie wird noch aufgebaut."
-               : "Zu wenig Verlauf im gewählten Zeitraum.",
+      pts <= 1 ? "The series is still being built."
+               : "Not enough series in the selected range.",
       pts <= 1
-        ? "Die Quelle veröffentlicht keinen Zahlen-Verlauf, deshalb schreibt " +
-          "der Scraper ihn selbst mit. Ab dem zweiten stündlichen Log-Eintrag " +
-          "erscheint hier eine Kurve — Punkte bisher: " + pts + "."
-        : "Wähle einen größeren Zeitraum oder blende Stationen wieder ein.",
+        ? "The source publishes no numeric series, so the scraper logs one " +
+          "itself. From the second hourly entry a curve appears here — " +
+          "points so far: " + pts + "."
+        : "Pick a longer range, or bring stations back in.",
       pts / 2);
     return;
   }
@@ -819,13 +840,13 @@ function renderChart(win){
   const X = (d) => x0 + (d.getTime() - t0) / span * (x1 - x0);
   const Y = (v) => y1 - (v / yMax) * (y1 - y0);
 
-  // Gefahrenband ueber der Informationsschwelle: sehr leise, nur Kontext.
+  // Danger band above the information threshold: very quiet, context only.
   if (yMax > 180){
     s.appendChild(svg("rect", {x:x0, y:Y(yMax), width:x1-x0, height:Y(180)-Y(yMax),
       fill:"var(--critical)", opacity:.055}));
   }
 
-  // Y-Grid: durchgezogene Haarlinien, eine Nuance ueber der Flaeche.
+  // Y grid: solid hairlines, one shade off the surface.
   for (let v = 0; v <= yMax; v += 50){
     s.appendChild(svg("line", {class:"gridline", x1:x0, x2:x1, y1:Y(v), y2:Y(v)}));
     s.appendChild(svg("text", {class:"tick", x:x0-8, y:Y(v)+4,
@@ -834,8 +855,8 @@ function renderChart(win){
   s.appendChild(svg("text", {x:x0-8, y:11, "text-anchor":"end",
     style:"font-size:10.5px", text:"µg/m³"}));
 
-  // Referenzlinien. Gestrichelt und in gedaempfter Schrift statt in
-  // Statusfarbe — sonst konkurrieren sie mit den Serienfarben.
+  // Reference lines. Dashed and in muted type rather than a status colour —
+  // otherwise they compete with the series colours.
   const thr = state.data.thresholds || {};
   for (const [v, lab] of [[thr.who_short_8h||100, "WHO 100"],
                           [thr.eu_target_8h||120, "EU-Ziel 120"],
@@ -847,8 +868,8 @@ function renderChart(win){
 
   // X-Achse
   s.appendChild(svg("line", {class:"baseline", x1:x0, x2:x1, y1:y1, y2:y1}));
-  // Ticks aus dem Zeitbereich ableiten, nicht aus den Datenpunkten: bei einer
-  // Datenluecke fehlten sonst genau dort die Achsenbeschriftungen.
+  // Derive ticks from the time domain, not from the data points: with a gap
+  // in the data the axis labels would otherwise be missing exactly there.
   const stepH = state.rangeH <= 24 ? 4 : (state.rangeH <= 48 ? 8 : 12);
   let lastDay = null;
   const first = new Date(win.times[0]);
@@ -869,15 +890,15 @@ function renderChart(win){
     }
   }
 
-  // Linien. Luecken > 2 h brechen den Pfad, damit ein Cron-Ausfall nicht als
-  // gerade Linie durch die Landschaft interpoliert wird.
-  const MAXGAP = 2 * 36e5;      // groessere Luecken werden nicht verbunden
+  // Lines. Gaps over 2 h break the path so a missed cron run is not
+  // interpolated as a straight line across the landscape.
+  const MAXGAP = 2 * 36e5;      // larger gaps are not connected
   const ends = [];
   for (const ser of drawable){
-    // Erst die zeichenbaren Indizes sammeln, dann Segmente bilden. So laesst
-    // sich erkennen, welche Punkte allein stehen: ein einzelner Punkt ergibt
-    // nur ein "M" ohne "L" und waere sonst unsichtbar — genau so verschwand
-    // der Tagespeak, wenn er zwischen zwei Luecken lag.
+    // Collect the drawable indices first, then form segments. That reveals
+    // which points stand alone: a single point yields only an "M" with no
+    // "L" and would otherwise be invisible — exactly how the daily peak
+    // vanished when it sat between two gaps.
     const idx = [];
     for (let i = 0; i < win.times.length; i++){
       const v = ser.vals[i];
@@ -919,8 +940,8 @@ function renderChart(win){
                             v:ser.vals[li]});
   }
 
-  // Direktlabels an den Linienenden. Zweitkodierung neben der Farbe und
-  // gleichzeitig die "Relief"-Pflicht fuer die kontrastschwachen Slots.
+  // Direct labels at the line ends. Secondary encoding next to colour, and
+  // at the same time the relief requirement for the low-contrast slots.
   ends.sort((a,b) => a.y - b.y);
   for (let i = 1; i < ends.length; i++){
     if (ends[i].y - ends[i-1].y < LAB_GAP) ends[i].y = ends[i-1].y + LAB_GAP;
@@ -928,7 +949,7 @@ function renderChart(win){
   for (const e of ends){
     s.appendChild(svg("circle", {cx:e.x, cy:Y(e.v), r:3.5,
       fill:colorOf(e.ser.slot), class:"focusdot"}));
-    // Verbindungsstrich, wenn das Label vom Linienende weggeschoben wurde.
+    // Leader line when the label was nudged away from the line end.
     if (Math.abs(e.y - Y(e.v)) > 2){
       s.appendChild(svg("line", {x1:e.x+4, y1:Y(e.v), x2:x1+3, y2:e.y,
         stroke:colorOf(e.ser.slot), "stroke-width":1, opacity:.45}));
@@ -937,7 +958,7 @@ function renderChart(win){
       text:`${e.ser.label} ${e.v}`}));
   }
 
-  // Hover- und Fokus-Layer: Crosshair sucht das X, ein Tooltip fuer alle Serien.
+  // Hover and focus layer: the crosshair finds the X, one tooltip for all series.
   const cross = svg("line", {class:"cross", y1:y0, y2:y1, x1:-99, x2:-99});
   const dots  = svg("g", {});
   s.appendChild(cross); s.appendChild(dots);
@@ -973,7 +994,7 @@ function renderChart(win){
 
     const tip = $("tip"); tip.textContent = "";
     tip.appendChild(el("div", {class:"th",
-      text:`${dayMon(d)} ${hhmm(d)} · 1-h-Mittel`}));
+      text:`${dayMon(d)} ${hhmm(d)} · 1-hour mean`}));
     for (const r of rows){
       const row = el("div", {class:"r"});
       row.appendChild(el("span", {class:"k",
@@ -1001,7 +1022,7 @@ function renderChart(win){
   hit.addEventListener("pointermove", (e) => focusAt(nearest(e.clientX)));
   hit.addEventListener("pointerleave", clear);
 
-  // Tastatur: derselbe Readout wie beim Hover.
+  // Keyboard: the same readout as on hover.
   s.setAttribute("tabindex", "0");
   s.onkeydown = (e) => {
     const n = win.times.length;
@@ -1021,22 +1042,22 @@ function renderChart(win){
   let origin = "";
   if (src.archive){
     const until = parseTs(src.archive_until);
-    origin = ` · ${src.archive} Werte aus dem EEA-Archiv` +
-      (until ? ` (bis ${hhmm(until)})` : "") +
-      (src.log ? `, ${src.log} aus dem eigenen Log danach` : "");
+    origin = ` · ${src.archive} values from the EEA archive` +
+      (until ? ` (up to ${hhmm(until)})` : "") +
+      (src.log ? `, ${src.log} from the local log after that` : "");
   } else if (src.log){
-    origin = ` · ${src.log} Werte aus dem eigenen Log`;
+    origin = ` · ${src.log} values from the local log`;
   }
   $("chNote").textContent =
-    `${win.times.length} Messpunkte · ${nActive} von ${win.series.length} ` +
-    `Stationen${origin} · Pfeiltasten oder Maus für Werte · Lücken über 2 h ` +
-    `werden nicht interpoliert`;
+    `${win.times.length} readings · ${nActive} of ${win.series.length} ` +
+    `stations${origin} · arrow keys or mouse for values · gaps over 2 h ` +
+    `are not interpolated`;
 }
 
-/* --------------------------------------------------------------- Legende --- */
-/* Linien-Key als echtes SVG, damit im Muster-Modus genau das Strichmuster der
-   Kurve in der Legende steht. Mit CSS-Rahmen war ein 14px breiter "dashed"
-   Strich von einem durchgezogenen nicht zu unterscheiden. */
+/* ----------------------------------------------------------------- Legend -- */
+/* Line key as a real SVG so that in pattern mode the legend shows exactly the
+   curve's dash pattern. With a CSS border a 14px "dashed" stroke was
+   indistinguishable from a solid one. */
 function lineKey(slot){
   const w = 20, h = 8;
   const s = svg("svg", {width:w, height:h, viewBox:`0 0 ${w} ${h}`,
@@ -1053,7 +1074,7 @@ function renderLegend(d, win){
   for (const s of d.stations){
     const off = state.hidden.has(s.id);
     const b = el("button", {"aria-pressed": String(!off),
-      title: off ? "Station einblenden" : "Station ausblenden"});
+      title: off ? "show station" : "hide station"});
     b.appendChild(lineKey(s.slot));
     b.appendChild(el("span", {text: s.short}));
     b.onclick = () => {
@@ -1064,11 +1085,11 @@ function renderLegend(d, win){
   }
 }
 
-/* ---------------------------------------------------------- Tagesgang ----- */
+/* ------------------------------------------------------------ Daily cycle -- */
 function renderProfile(d){
   const card = $("profCard");
   const arcs = arcStations(d);
-  // Archiv schlaegt Eigenlog: 5 Jahre Saisondaten statt zwei Tage.
+  // Archive beats the local log: five years of season data instead of two days.
   const useArc = arcs.length > 0 && arcs.some(s => s.hour_profile);
   const prof = d.hour_profile || {};
   if (!useArc && !prof.sufficient){ card.hidden = true; return; }
@@ -1079,19 +1100,19 @@ function renderProfile(d){
   if (useArc){
     const p0 = (visible[0] || arcs[0]).hour_profile || {};
     const yrs = p0.years || [];
-    $("prH").textContent = "Tagesgang · Median je Stunde (Ozonsaison)";
+    $("prH").textContent = "Daily cycle · median per hour (ozone season)";
     $("prNote").textContent =
-      `Median des 1-h-Werts je Stunde aus ${yrs[0]}–${yrs[yrs.length-1]}, ` +
-      `nur April–September (${p0.n_days} Saisontage). Das ist die belastbare ` +
-      `Antwort darauf, wann es tatsächlich sauber ist. ` +
+      `Median 1-hour value per hour of day, ${yrs[0]}–${yrs[yrs.length-1]}, ` +
+      `April–September only (${p0.n_days} season days). This is the reliable ` +
+      `answer to when it is actually clean. ` +
       (single
-        ? "Das Band zeigt das 25.–75. Perzentil."
-        : "Einzelne Station in der Legende auswählen, um ihr 25.–75.-Perzentil-Band zu sehen.");
+        ? "The band shows the 25th–75th percentile."
+        : "Select a single station in the legend to see its 25th–75th percentile band.");
   } else {
-    $("prH").textContent = "Tagesgang · Median je Stunde";
+    $("prH").textContent = "Daily cycle · median per hour";
     $("prNote").textContent =
-      `Median des 1-h-Werts je Stunde, aus ${prof.n_days} geloggten Tagen. ` +
-      `Für 23 Jahre Messdaten: eea_archive.py --build`;
+      `Median 1-hour value per hour of day, from ${prof.n_days} logged days. ` +
+      `For the full measured record: eea_archive.py --build`;
   }
 
   const wrap = card.querySelector(".plotwrap");
@@ -1139,7 +1160,7 @@ function renderProfile(d){
       width:Math.max(2, X(Math.min(23,bw.to_hour)) - X(bw.from_hour)),
       height:y1-y0, fill:"var(--good)", opacity:.09}));
     s.appendChild(svg("text", {x:X(bw.from_hour)+4, y:y0+11,
-      style:"font-size:10.5px;font-weight:600", text:"bestes Fenster"}));
+      style:"font-size:10.5px;font-weight:600", text:"best window"}));
   }
   s.appendChild(svg("line", {class:"baseline", x1:x0, x2:x1, y1:y1, y2:y1}));
   for (let h = 0; h <= 23; h += 3){
@@ -1147,10 +1168,10 @@ function renderProfile(d){
       "text-anchor":"middle", text:String(h).padStart(2,"0")}));
   }
   s.appendChild(svg("text", {x:x1, y:y1+27, "text-anchor":"end",
-    style:"font-size:10px", text:"Stunde"}));
+    style:"font-size:10px", text:"hour"}));
 
-  // Perzentil-Band nur bei genau einer sichtbaren Station: vier
-  // uebereinanderliegende Baender sind Matsch.
+  // Percentile band only when exactly one station is visible: four
+  // overlapping bands are mush.
   if (single){
     const b = band[visible[0].id] || {};
     const lo = b.lo || [], hi = b.hi || [];
@@ -1230,7 +1251,7 @@ function sparkline(d, st){
   if (pts.length < 2){
     box.appendChild(el("span", {style:
       "font-size:11.5px;color:var(--ink-muted);display:block;padding-top:11px",
-      text:`Verlauf ab 2 Log-Einträgen (${pts.length})`}));
+      text:`Series from 2 log entries (${pts.length})`}));
     return box;
   }
   const lo = Math.min(...pts.map(p => p.v)), hi = Math.max(...pts.map(p => p.v));
@@ -1256,9 +1277,9 @@ function sparkline(d, st){
 }
 
 
-/* ------------------------------------------------------- Jahresreihe ------ */
-/* Drei Kennzahlen mit unterschiedlichen Einheiten (µg/m³ und Tage). Deshalb
-   ein Umschalter und immer nur EINE Achse - nie zwei y-Skalen in einem Plot. */
+/* ---------------------------------------------------------- Annual series -- */
+/* Three metrics with different units (µg/m³ and days). Hence a switch and
+   always only ONE axis — never two y-scales in one plot. */
 function renderYearly(d){
   const card = $("yearCard");
   const arcs = arcStations(d);
@@ -1275,8 +1296,8 @@ function renderYearly(d){
     }
   }
   const notePartial = partial.size
-    ? `  ${[...partial].join(", ")} ist noch nicht zu Ende — der letzte Punkt ` +
-      "ist ein Zwischenstand (hohl gezeichnet)."
+    ? `  ${[...partial].join(", ")} is not finished — the last point is an ` +
+      "interim figure (drawn hollow)."
     : "";
 
   const wrap = card.querySelector(".plotwrap");
@@ -1302,9 +1323,9 @@ function renderYearly(d){
   const low = Math.min(...vals, ...refs);
   const step = key === "days_8h_over_120" ? 20 : 25;
   const yMax = Math.ceil((top * 1.06) / step) * step;
-  // Kein Zwang zur Nullbasis: das sind Linien, keine Balken. Die Untergrenze
-  // rutscht unter den kleinsten Wert UND unter die Referenzlinie, sonst liegen
-  // 24 Jahre Variation in einem Drittel der Plothoehe.
+  // No obligation to a zero baseline: these are lines, not bars. The lower
+  // bound slips below the smallest value AND below the reference line —
+  // otherwise decades of variation sit in a third of the plot height.
   const yMin = Math.max(0, Math.floor((low * 0.92) / step) * step);
   const X = (y) => x0 + (y - years[0]) / Math.max(1, years[years.length-1]-years[0]) * (x1-x0);
   const Y = (v) => y1 - ((v - yMin) / Math.max(1, yMax - yMin)) * (y1 - y0);
@@ -1316,16 +1337,16 @@ function renderYearly(d){
   }
   sv.appendChild(svg("text", {x:x0-8, y:11, "text-anchor":"end",
     style:"font-size:10.5px", text:M.unit}));
-  $("yrH").textContent = `Jahresreihe · ${years[0]}–${years[years.length-1]}`;
+  $("yrH").textContent = `Annual series · ${years[0]}–${years[years.length-1]}`;
   $("yrNote").textContent = M.note + notePartial +
-    (yMin > 0 ? `  Achse beginnt bei ${yMin} ${M.unit}, nicht bei null.` : "");
+    (yMin > 0 ? `  Axis starts at ${yMin} ${M.unit}, not at zero.` : "");
   for (const [v, lab] of M.ref){
     if (v > yMax || v < yMin) continue;
     sv.appendChild(svg("line", {class:"thr", x1:x0, x2:x1, y1:Y(v), y2:Y(v)}));
     thrLabel(sv, x0 + 5, Y(v) - 4, lab);
   }
   sv.appendChild(svg("line", {class:"baseline", x1:x0, x2:x1, y1:y1, y2:y1}));
-  // Letztes Jahr immer beschriften, aber nicht direkt neben seinen Nachbarn.
+  // Always label the last year, but not right next to its neighbour.
   const tickEvery = years.length > 16 ? 4 : 2;
   const lastY = years[years.length-1];
   for (const y of years){
@@ -1371,7 +1392,7 @@ function renderYearly(d){
       text:`${e.label} ${e.v}`}));
   }
 
-  // Crosshair identisch zum Verlaufsdiagramm.
+  // Crosshair identical to the series chart.
   const cross = svg("line", {class:"cross", y1:y0, y2:y1, x1:-99, x2:-99});
   const dots = svg("g", {});
   sv.appendChild(cross); sv.appendChild(dots);
@@ -1405,7 +1426,7 @@ function renderYearly(d){
     }
     if (rows.some(r => r.partial)){
       tip.appendChild(el("div", {class:"th",
-        style:"margin:5px 0 0", text:"* Jahr noch nicht zu Ende"}));
+        style:"margin:5px 0 0", text:"* year not finished"}));
     }
     tip.classList.add("on");
     const scale = (sv.getBoundingClientRect().width || W) / W;
@@ -1443,7 +1464,7 @@ function renderYearly(d){
   }
 }
 
-/* --------------------------------------------------------------- Tabellen -- */
+/* ----------------------------------------------------------------- Tables -- */
 function renderTables(d, win){
   const card = $("tableCard");
   card.hidden = !state.table;
@@ -1451,11 +1472,11 @@ function renderTables(d, win){
 
   const t1 = $("tblNow"); t1.textContent = "";
   t1.appendChild(el("caption", {text:
-    `Aktuelle Werte · Stand ${d.source_time_raw || "?"} · alle Angaben in µg/m³`}));
+    `Current values · source as of ${d.source_time_raw || "?"} · all in µg/m³`}));
   const hd = el("thead");
   const hr = el("tr");
-  for (const h of ["Station","ca. Höhe","1 h jetzt","Trend","1-h-Max","8-h-Max",
-                   "Vortag 8 h","Training","Tagesbewertung"]){
+  for (const h of ["Station","approx. alt.","1 h now","Trend","1-h max","8-h max",
+                   "Prev. day 8 h","Training","Daily assessment"]){
     hr.appendChild(el("th", {scope:"col", text:h}));
   }
   hd.appendChild(hr); t1.appendChild(hd);
@@ -1478,10 +1499,10 @@ function renderTables(d, win){
 
   const t2 = $("tblHist"); t2.textContent = "";
   t2.appendChild(el("caption", {text:
-    `Verlauf des 1-h-Mittels · letzte ${state.rangeH} h · ` +
-    `${win.times.length} Messpunkte`}));
+    `Series of the 1-hour mean · last ${state.rangeH} h · ` +
+    `${win.times.length} readings`}));
   const hd2 = el("thead"), hr2 = el("tr");
-  hr2.appendChild(el("th", {scope:"col", text:"Zeit"}));
+  hr2.appendChild(el("th", {scope:"col", text:"Time"}));
   for (const s of win.series) hr2.appendChild(el("th", {scope:"col", text:s.short}));
   hd2.appendChild(hr2); t2.appendChild(hd2);
   const tb2 = el("tbody");
@@ -1495,14 +1516,14 @@ function renderTables(d, win){
   t2.appendChild(tb2);
 }
 
-/* ------------------------------------------------------------ Referenzen -- */
+/* ------------------------------------------------------------ Reference -- */
 function renderRef(d){
   const sl = $("scaleList"); sl.textContent = "";
   const scale = d.training_scale || [];
   scale.forEach((row, i) => {
     const prev = i ? (scale[i-1].below) : 0;
     const range = row.below === null
-      ? `ab ${prev}`
+      ? `${prev} and above`
       : `${prev}–${row.below - 1}`;
     const dt = el("dt", {class:"scalerow"});
     dt.appendChild(el("span", {class:"glyph s-" + row.status,
@@ -1516,15 +1537,17 @@ function renderRef(d){
   const t = d.thresholds || {};
   const rows = [
     [`${t.who_peak_season || 60} µg/m³`,
-     "WHO-Langfristziel: Mittel der 8-h-Tagesmaxima über die sechs ozonreichsten Monate."],
+     "WHO long-term goal: mean of the daily 8-hour maxima over the six most " +
+     "ozone-rich months."],
     [`${t.who_short_8h || 100} µg/m³`,
-     "WHO-Kurzzeit-Leitwert 2021, maximales 8-h-Tagesmittel. Rein gesundheitsbasiert."],
+     "WHO short-term guideline 2021, maximum daily 8-hour mean. Purely " +
+     "health-based."],
     [`${t.eu_target_8h || 120} µg/m³`,
-     "EU-Zielwert, 8 h gleitend. Darf an begrenzt vielen Tagen pro Jahr " +
-     "überschritten werden (max. 25 im Mittel über drei Jahre)."],
+     "EU target value, running 8 h. May be exceeded on a limited number of " +
+     "days per year (max. 25, averaged over three years)."],
     [`${t.at_info_1h || 180} µg/m³`,
-     "Österreichische Informationsschwelle, 1-h-Mittel. Ab hier wird die " +
-     "Bevölkerung aktiv gewarnt."],
+     "Austrian information threshold, 1-hour mean. From here the public is " +
+     "actively warned."],
   ];
   for (const [k, v] of rows){
     tl.appendChild(el("dt", {text:k}));
@@ -1533,7 +1556,7 @@ function renderRef(d){
 }
 
 /* ==========================================================================
-   Bedienung
+   Controls
    ========================================================================== */
 function setTheme(mode){
   if (mode === "system") document.documentElement.removeAttribute("data-theme");

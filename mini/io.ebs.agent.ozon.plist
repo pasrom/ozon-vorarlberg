@@ -2,19 +2,19 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Ozon-Logger und Deploy. Folgt den Konventionen des Agent-Servers:
+  Ozone logger and deploy. Follows the agent-server conventions:
 
-  * LaunchDaemon in /Library/LaunchDaemons mit UserName=agent, nicht
-    LaunchAgent. Per-User-Agents laufen nur mit aktiver Session und waeren
-    nach einem Reboot des headless Servers tot.
-  * StartCalendarInterval statt StartInterval: war die Maschine zur geplanten
-    Zeit aus, wird der Lauf uebersprungen statt nachtraeglich gefeuert.
-  * HOME, PATH und LANG muessen hier stehen. launchd setzt HOME nicht und
-    liest .zshenv nicht; ohne das scheitern git und gh.
+  * LaunchDaemon in /Library/LaunchDaemons with UserName=agent, not a
+    LaunchAgent. Per-user agents only run while that user has an active
+    session and would be dead after a reboot of the headless server.
+  * StartCalendarInterval rather than StartInterval: if the machine was off at
+    the scheduled time the run is skipped, not fired retroactively.
+  * HOME, PATH and LANG have to be listed here. launchd does not set HOME and
+    does not read .zshenv; without them git and gh fail.
 
-  Drei Laeufe pro Stunde, versetzt von :00. Die Quelle aktualisiert stuendlich
-  und dedupliziert wird ueber ihren Zeitstempel — zwei Laeufe duerfen also
-  ausfallen, ohne dass eine Luecke entsteht.
+  Three runs per hour, offset from :00. The source updates hourly and is
+  deduplicated on its own timestamp, so two runs may be missed without
+  leaving a gap.
 -->
 <plist version="1.0">
 <dict>

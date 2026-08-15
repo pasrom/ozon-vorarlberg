@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Tests fuer eea_archive.py und die Archiv-Anbindung in ozon_vorarlberg.py.
+"""Tests for eea_archive.py and the archive wiring in ozon_vorarlberg.py.
 
-Laeuft komplett offline: die Netzfunktionen (download) werden nicht angefasst,
-Parquet-Eingaben werden synthetisiert. Aufruf: python3 -m unittest -v
+Runs entirely offline: the network functions (download) are never touched and
+Parquet inputs are synthesised. Usage: python3 -m unittest -v
 """
 
 import json
@@ -35,31 +35,31 @@ def season_series(days: int, start: datetime | None = None,
 
 
 class TestTimezone(unittest.TestCase):
-    """Der teuerste Fehler waere hier: ein Versatz um eine Stunde verschiebt
-    das empfohlene Trainingsfenster. Belegt gegen die offizielle Quelle in
+    """The costliest mistake here: being one hour off shifts the
+    recommended training window. Established against the official source in
     TestAgainstOfficialSource."""
 
     def test_eea_stamps_are_utc(self):
         self.assertEqual(ea.EEA_TZ.utcoffset(None), timedelta(0))
 
     def test_aggregation_day_boundary_is_fixed_cet(self):
-        # Die Quelle aggregiert Tageskennzahlen in fester MEZ, zeigt
-        # Einzelwerte aber in Lokalzeit. Zwei verschiedene Dinge.
+        # The source aggregates daily metrics in fixed CET but shows
+        # individual values in local time. Two different things.
         self.assertEqual(ea.AGG_TZ.utcoffset(None), timedelta(hours=1))
 
     def test_summer_stamp_shifts_two_hours(self):
         naive = datetime(2026, 8, 14, 10, 0)
         local = naive.replace(tzinfo=ea.EEA_TZ).astimezone(TZ)
-        self.assertEqual(local.hour, 12, "10:00 UTC = 12:00 MESZ")
+        self.assertEqual(local.hour, 12, "10:00 UTC = 12:00 CEST")
 
     def test_winter_stamp_shifts_one_hour(self):
         naive = datetime(2026, 1, 14, 10, 0)
         local = naive.replace(tzinfo=ea.EEA_TZ).astimezone(TZ)
-        self.assertEqual(local.hour, 11, "10:00 UTC = 11:00 MEZ")
+        self.assertEqual(local.hour, 11, "10:00 UTC = 11:00 CET")
 
     def test_midnight_window_belongs_to_the_previous_day(self):
-        # 24:00 zaehlt zum alten Tag - sonst wandert das Abendfenster in den
-        # naechsten Tag und macht dessen Maximum zu hoch.
+        # 24:00 counts towards the old day — otherwise the evening window
+        # moves into the next day and inflates its maximum.
         end = datetime(2026, 8, 15, 1, 0, tzinfo=TZ)      # 00:00 MEZ
         self.assertEqual(ea.day_of_window(end), date(2026, 8, 14))
         later = datetime(2026, 8, 15, 2, 0, tzinfo=TZ)    # 01:00 MEZ
@@ -74,8 +74,8 @@ class TestMapping(unittest.TestCase):
         for sid, point in ea.SAMPLING_POINT.items():
             parts = point.split(".")
             self.assertEqual(parts[0], "SPO", point)
-            self.assertEqual(parts[1], "08", f"{sid}: Netz 08 = Vorarlberg")
-            self.assertEqual(parts[4], "7", f"{sid}: Schadstoff 7 = Ozon")
+            self.assertEqual(parts[1], "08", f"{sid}: network 08 = Vorarlberg")
+            self.assertEqual(parts[4], "7", f"{sid}: pollutant 7 = ozone")
 
     def test_sampling_points_are_unique(self):
         vals = list(ea.SAMPLING_POINT.values())
@@ -84,7 +84,7 @@ class TestMapping(unittest.TestCase):
     def test_datasets_cover_a_contiguous_range(self):
         spans = [(y0, y1) for _c, y0, y1, _t in ea.DATASETS]
         for (_a, end), (start, _b) in zip(spans, spans[1:]):
-            self.assertEqual(start, end + 1, "keine Luecke zwischen Containern")
+            self.assertEqual(start, end + 1, "no gap between containers")
 
     def test_blob_url_shape(self):
         u = ea.blob_url("airquality-p", "SPO.08.0503.3670.7.1")
@@ -99,31 +99,31 @@ class TestRolling8h(unittest.TestCase):
         self.assertTrue(all(abs(v - 100) < 1e-9 for _t, v in r))
 
     def test_window_is_assigned_to_its_end(self):
-        # Staende 00:00..07:00 decken 00:00-08:00 ab; das Mittel gehoert an
-        # 08:00, nicht an 07:00.
+        # Starts 00:00..07:00 cover 00:00-08:00; the mean belongs at 08:00,
+        # not at 07:00.
         s = hours(datetime(2024, 7, 1, 0, tzinfo=TZ), list(range(1, 25)))
         r = dict(ea.rolling_8h(s))
         end = datetime(2024, 7, 1, 8, tzinfo=TZ)
         self.assertAlmostEqual(r[end], sum(range(1, 9)) / 8)
-        # Das erste VOLLE Fenster endet um 08:00; frueher gibt es nur
-        # Teilfenster ab EIGHT_H_MIN_VALID Werten.
+        # The first FULL window ends at 08:00; before that there are only
+        # partial windows from EIGHT_H_MIN_VALID values onwards.
         self.assertNotIn(datetime(2024, 7, 1, 5, tzinfo=TZ), r)
 
     def test_short_start_is_dropped_until_min_valid(self):
         s = hours(datetime(2024, 7, 1, 0, tzinfo=TZ), [50] * 10)
         r = ea.rolling_8h(s)
-        # Die ersten Stunden haben weniger als EIGHT_H_MIN_VALID Vorlaeufer.
+        # The first hours have fewer than EIGHT_H_MIN_VALID predecessors.
         self.assertEqual(len(r), 10 - ea.EIGHT_H_MIN_VALID + 1)
 
     def test_gap_breaks_the_window(self):
         a = hours(datetime(2024, 7, 1, 0, tzinfo=TZ), [10] * 8)
         b = hours(datetime(2024, 7, 2, 0, tzinfo=TZ), [200] * 8)
         r = dict(ea.rolling_8h(a + b))
-        # Erste Stunde nach der Luecke darf nicht ueber sie hinweg mitteln.
+        # The first hour after the gap must not average across it.
         first_after = datetime(2024, 7, 2, 6, tzinfo=TZ)
         self.assertIn(first_after, r)
         self.assertAlmostEqual(r[first_after], 200.0,
-                               msg="Mittel darf die 10er-Werte nicht einbeziehen")
+                               msg="the mean must not include the 10s")
 
     def test_empty(self):
         self.assertEqual(ea.rolling_8h([]), [])
@@ -131,8 +131,8 @@ class TestRolling8h(unittest.TestCase):
 
 class TestDailyMax(unittest.TestCase):
     def test_picks_max_per_day(self):
-        # Mittagswerte: weit weg von der Tagesgrenze, damit der Test nur das
-        # Maximum prueft und nicht die Zonenlogik.
+        # Midday values: far from the day boundary, so the test only checks
+        # the maximum, not the zone logic.
         s = (hours(datetime(2024, 7, 1, 12, tzinfo=TZ), [10, 90, 40]) +
              hours(datetime(2024, 7, 2, 12, tzinfo=TZ), [70, 20]))
         d = ea.daily_max(s)
@@ -140,8 +140,8 @@ class TestDailyMax(unittest.TestCase):
         self.assertEqual(d[date(2024, 7, 2)], 70)
 
     def test_day_boundary_is_cet_not_local(self):
-        # Sommer: 00:00 MESZ ist 23:00 MEZ des Vortags. Die Quelle aggregiert
-        # in fester MEZ, also gehoert dieser Stundenwert noch zum Vortag.
+        # Summer: 00:00 CEST is 23:00 CET of the previous day. The source
+        # aggregates in fixed CET, so this hour belongs to the day before.
         s = hours(datetime(2024, 7, 2, 0, tzinfo=TZ), [55])
         self.assertEqual(list(ea.daily_max(s)), [date(2024, 7, 1)])
         s2 = hours(datetime(2024, 7, 2, 1, tzinfo=TZ), [55])
@@ -164,7 +164,7 @@ class TestPeakSeason(unittest.TestCase):
         dmax = {}
         for m in range(1, 13):
             for d in range(1, 29):
-                # Sommer klar hoeher als Winter.
+                # summer clearly higher than winter.
                 dmax[date(2024, m, d)] = 120 if 4 <= m <= 9 else 40
         v = ea.peak_season_mean(dmax, 2024)
         self.assertIsNotNone(v)
@@ -189,9 +189,9 @@ class TestYearlyStats(unittest.TestCase):
     def test_counts_and_maxima(self):
         d = self.stats["2024"]
         self.assertEqual(d["hours"], 120 * 24)
-        # 121, nicht 120: die Reihe beginnt um 00:00 MESZ, was in fester MEZ
-        # noch der 31.03. ist. Die Aggregation folgt der Quelle, nicht dem
-        # Kalender der Eingabe.
+        # 121, not 120: the series starts at 00:00 CEST, which in fixed CET is
+        # still 31 March. Aggregation follows the source, not the calendar
+        # of the input.
         self.assertEqual(d["days_measured"], 121)
         self.assertEqual(d["max_1h"], 135)          # base 90 + amp 45
         self.assertLess(d["max_8h"], d["max_1h"])
@@ -212,7 +212,7 @@ class TestYearlyStats(unittest.TestCase):
         y = datetime.now(TZ).year
         s = season_series(40, datetime(y, 4, 1, 0, tzinfo=TZ))
         st = ea.yearly_stats(s)[str(y)]
-        self.assertTrue(st["partial"], "laufendes Jahr ist ein Zwischenstand")
+        self.assertTrue(st["partial"], "the running year is an interim figure")
 
     def test_past_year_is_not_partial(self):
         self.assertFalse(self.stats["2024"]["partial"])
@@ -236,7 +236,7 @@ class TestHourProfile(unittest.TestCase):
     def test_only_season_months_are_used(self):
         winter = season_series(60, datetime(2024, 1, 1, 0, tzinfo=TZ))
         p = ea.hour_profile(winter)
-        self.assertEqual(p["n_days"], 0, "Januar ist keine Ozonsaison")
+        self.assertEqual(p["n_days"], 0, "January is not ozone season")
         self.assertTrue(all(v is None for v in p["median"]))
 
     def test_season_months_constant(self):
@@ -252,7 +252,7 @@ class TestBestWindow(unittest.TestCase):
         s = season_series(120, datetime(2024, 4, 1, 0, tzinfo=TZ))
         bw = ea.best_window(ea.hour_profile(s))
         self.assertIsNotNone(bw)
-        # Peak liegt bei 16 Uhr, das Minimum also gegen 04 Uhr.
+        # The peak is at 16:00, so the minimum is around 04:00.
         self.assertLessEqual(bw["from_hour"], 5)
         self.assertEqual(bw["to_hour"] - bw["from_hour"], 3)
 
@@ -279,7 +279,7 @@ class TestDayContext(unittest.TestCase):
         ctx = ea.day_of_year_context(self._multi_year(), date(2026, 8, 14))
         self.assertIsNotNone(ctx)
         self.assertNotIn("today_max_1h", ctx,
-                         "das Archiv darf keinen Tageswert liefern")
+                         "the archive must not supply a daily value")
         self.assertIn("reference_sorted", ctx)
         self.assertEqual(ctx["reference_sorted"], sorted(ctx["reference_sorted"]))
 
@@ -308,8 +308,8 @@ class TestDayContext(unittest.TestCase):
 
 
 class TestReadParquet(unittest.TestCase):
-    """read_parquet gegen eine selbst geschriebene Parquet-Datei — prueft
-    Validity-Filter und Zeitzonenumrechnung ohne Netzzugriff."""
+    """read_parquet against a Parquet file we write ourselves — checks the
+    validity filter and timezone conversion without network access."""
 
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
@@ -317,7 +317,7 @@ class TestReadParquet(unittest.TestCase):
             import pyarrow as pa
             import pyarrow.parquet as pq
         except ImportError:
-            self.skipTest("pyarrow nicht installiert")
+            self.skipTest("pyarrow not installed")
         self.path = Path(self.dir.name) / "t.parquet"
         starts = [datetime(2026, 8, 14, h) for h in (10, 11, 12, 13)]
         table = pa.table({
@@ -335,7 +335,7 @@ class TestReadParquet(unittest.TestCase):
 
     def test_invalid_rows_are_dropped(self):
         rows = ea.read_parquet(self.path)
-        self.assertEqual(len(rows), 3, "Validity -1 muss wegfallen")
+        self.assertEqual(len(rows), 3, "validity -1 must be dropped")
         self.assertNotIn(-999.0, [v for _t, v in rows])
 
     def test_validity_3_counts_as_valid(self):
@@ -343,20 +343,20 @@ class TestReadParquet(unittest.TestCase):
 
     def test_timestamps_are_shifted_to_local_summer_time(self):
         rows = ea.read_parquet(self.path)
-        self.assertEqual(rows[0][0].hour, 12, "10:00 UTC = 12:00 MESZ")
+        self.assertEqual(rows[0][0].hour, 12, "10:00 UTC = 12:00 CEST")
         self.assertEqual(str(rows[0][0].tzinfo), oz.TZ_NAME)
 
 
 class TestAgainstOfficialSource(unittest.TestCase):
-    """Die entscheidenden Tests: EEA-Werte gegen die offizielle Landesseite.
+    """The decisive tests: EEA values against the official regional page.
 
-    Referenzwerte stammen aus zwei unabhaengigen Quellen:
-      * Screenshots vom 30.07.2026 (ZUSAMMENFASSUNG.md, Abschnitt 1) - drei
-        Uhrzeiten mal vier Stationen, plus die 8h-Tagesmaxima um 13:00.
-      * Die Vortagsspalte der Seite vom 14.08.2026 fuer den 13.08.
+    Reference values come from two independent sources:
+      * Screenshots from 2026-07-30 — three times of day by four stations,
+        plus the daily 8h maxima at 13:00.
+      * The previous-day column of the page from 2026-08-14, for 08-13.
 
-    Braucht den Parquet-Cache (eea_archive.py --build); ohne ihn wird
-    uebersprungen, damit die Suite offline bleibt.
+    Needs the parquet cache (eea_archive.py --build); without it these are
+    skipped so the suite stays offline.
     """
 
     # Seitenlabel (Lokalzeit, Fensterende) -> erwarteter 1h-Wert
@@ -376,17 +376,18 @@ class TestAgainstOfficialSource(unittest.TestCase):
             p = ea.cache_path("airquality-p", point)
             if not p.exists():
                 raise unittest.SkipTest(
-                    "Parquet-Cache fehlt - vorher eea_archive.py --build laufen lassen")
+                    "parquet cache missing — run eea_archive.py --build first")
             cls.series[sid] = ea.read_parquet(p)
 
     def test_hourly_values_match_exactly(self):
         """11 Stundenwerte, vier Stationen, drei Uhrzeiten - alle exakt.
 
-        Das ist der Beleg fuer EEA_TZ = UTC. Mit fester MEZ traf nur 1 von 11.
+        This is the evidence for EEA_TZ = UTC. With fixed CET only 1 of 11
+        matched.
         """
         for hour, row in self.HOURLY.items():
             for sid, want in row.items():
-                # Seite beschriftet nach Fensterende, read_parquet nach Start.
+                # The page labels by window end, read_parquet by start.
                 target = datetime(2026, 7, 30, hour - 1, tzinfo=TZ)
                 got = next((v for ts, v in self.series[sid] if ts == target), None)
                 self.assertIsNotNone(got, f"{sid} {hour}:00 fehlt")
@@ -403,9 +404,9 @@ class TestAgainstOfficialSource(unittest.TestCase):
             self.assertEqual(round(d[date(2026, 8, 13)]), want, sid)
 
     def test_daily_max_8h_partial_day_matches(self):
-        """8h-Tagesmax am 30.07. um 13:00 - der Test, der die Tagesgrenze
-        festnagelt. Mit der Grenze in MESZ statt MEZ war jede Station um 1 bis
-        6 µg/m³ zu hoch."""
+        """Daily 8h max on 2026-07-30 at 13:00 — the test that pins down the
+        day boundary. With the boundary in CEST instead of CET every station
+        came out 1 to 6 ug/m3 too high."""
         cut = datetime(2026, 7, 30, 13, tzinfo=TZ)
         for sid, want in self.MAX8_0730.items():
             vals = [v for ts, v in ea.rolling_8h(self.series[sid])
@@ -422,7 +423,7 @@ class TestRecentSeries(unittest.TestCase):
         s = hours(datetime(2024, 7, 1, 10, tzinfo=TZ), [50, 60])
         r = ea.recent_series(s)
         self.assertEqual(r["labelled"], "window_end")
-        # Start 10:00 deckt 10-11 ab, wird also als 11:00 exportiert.
+        # Start 10:00 covers 10-11, so it is exported as 11:00.
         self.assertTrue(r["t"][0].startswith("2024-07-01T11:00"))
         self.assertEqual(r["v"], [50.0, 60.0])
 
@@ -437,9 +438,8 @@ class TestRecentSeries(unittest.TestCase):
 
 
 class TestMergedHistory(unittest.TestCase):
-    """Archiv + Eigenlog zu einer Kurve. Der Fallstrick ist die Beschriftung:
-    beide Reihen muessen nach Fensterende laufen, sonst liegen sie um eine
-    Stunde versetzt aneinander."""
+    """Archive plus local log into one curve. The pitfall is the labelling:
+    both series must run by window end, otherwise they sit an hour apart."""
 
     def _log(self, *hours_):
         return [{"source_time": f"2026-08-14T{h:02d}:00+02:00",
@@ -470,12 +470,12 @@ class TestMergedHistory(unittest.TestCase):
                                         "archive_until": "2026-08-14T15:00+02:00"})
 
     def test_archive_wins_on_overlap(self):
-        # Das Log schreibt die gerundete Anzeige mit, das Archiv den Messwert.
+        # The log records the rounded display, the archive the measurement.
         h = oz.history_series(self._log((15, 101)),
                               archive=self._archive((15, 100.4)))
         self.assertEqual(h["akt_1h"]["ATVA002"], [100.4])
         self.assertEqual(h["sources"]["archive"], 1)
-        self.assertEqual(h["sources"]["log"], 0, "nicht doppelt zaehlen")
+        self.assertEqual(h["sources"]["log"], 0, "must not be counted twice")
 
     def test_time_axis_is_the_union_and_sorted(self):
         h = oz.history_series(self._log((20, 1), (17, 2)),
@@ -593,9 +593,9 @@ class TestArchiveBlock(unittest.TestCase):
         self.assertEqual(blk["total_hours"], 100)
 
     def test_years_are_derived_from_the_data_not_copied(self):
-        # Das Feld "years" der Archivdatei wird absichtlich NICHT uebernommen:
-        # es wird aus den tatsaechlich vorhandenen yearly-Schluesseln neu
-        # gebildet. Hier hat die Station nur 2025, obwohl oben 2024+2025 steht.
+        # The archive file's "years" field is deliberately NOT adopted: it is
+        # rebuilt from the yearly keys actually present. Here the station only
+        # has 2025, even though the file above claims 2024+2025.
         arc = self._fake_archive()
         arc["years"] = ["2024", "2025"]
         blk = oz.archive_block(arc, self._readings(163))

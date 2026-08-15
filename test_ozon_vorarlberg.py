@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Tests fuer ozon_vorarlberg.py — laufen ohne pytest: python3 -m unittest -v
+"""Tests for ozon_vorarlberg.py — run without pytest: python3 -m unittest -v
 
-Die wichtigste Fixture ist fixtures/tab1O3_live.htm: ein echter, unveraenderter
-Abzug der Quellseite inklusive ihrer verschachtelten Layout-Tabellen. Genau
-diese Verschachtelung hat den urspruenglichen Parser gebrochen, und die alte
-handgeschriebene Minimal-Fixture konnte das nicht zeigen.
+The important fixture is fixtures/tab1O3_live.htm: a real, unmodified dump of
+the source page including its nested layout tables. That nesting is exactly
+what broke the original parser, and the old hand-written minimal fixture could
+not expose it.
 """
 
 import json
@@ -42,14 +42,14 @@ class TestToInt(unittest.TestCase):
             self.assertIsNone(oz._to_int(cell), cell)
 
     def test_unit_cell_is_not_a_value(self):
-        # "ug/m3" und "µg/m 3" enthalten eine 3 - die darf nie als Messwert
-        # durchgehen.
+        # "ug/m3" and "µg/m 3" contain a 3 — that must never pass as a reading
+        # value.
         for cell in ("µg/m3", "µg/m 3", "ug/m3", "µg / m 3"):
             self.assertIsNone(oz._to_int(cell), cell)
 
 
 class TestParseLive(unittest.TestCase):
-    """Regression fuer die verschachtelten Layout-Tabellen der echten Seite."""
+    """Regression for the nested layout tables of the real page."""
 
     @classmethod
     def setUpClass(cls):
@@ -70,9 +70,9 @@ class TestParseLive(unittest.TestCase):
         })
 
     def test_bludenz_is_not_eaten_by_the_wrapper_row(self):
-        # Der aeussere <tr> umschliesst die ganze Werte-Tabelle und enthaelt
-        # deren ersten Stations-Link (statATVA007). Ohne den Nested-Table-Filter
-        # belegte er ATVA007 mit Muell und die echte Zeile fiel als Duplikat weg.
+        # The outer <tr> encloses the whole values table and therefore also
+        # carries its first station link (statATVA007). Without the nested-table
+        # filter it claimed ATVA007 with garbage and the real row was dropped.
         bludenz = next(r for r in self.page.readings if r.id == "ATVA007")
         self.assertEqual(bludenz.akt_1h, 146)
         self.assertEqual(bludenz.station, "Bludenz Herrengasse")
@@ -93,7 +93,7 @@ class TestParseLive(unittest.TestCase):
 
 
 class TestParseMinimal(unittest.TestCase):
-    """Alte Fixture ohne Detail-Links: der Name-Fallback muss greifen."""
+    """Old fixture without detail links: the name fallback has to work."""
 
     @classmethod
     def setUpClass(cls):
@@ -104,7 +104,7 @@ class TestParseMinimal(unittest.TestCase):
 
     def test_missing_value_stays_none(self):
         lustenau = next(r for r in self.page.readings if r.id == "ATVA002")
-        self.assertIsNone(lustenau.akt_1h)     # Zelle ist "-"
+        self.assertIsNone(lustenau.akt_1h)     # cell is "-"
         self.assertEqual(lustenau.max_1h, 135)
         self.assertEqual(lustenau.max_8h, 120)
 
@@ -123,7 +123,7 @@ class TestLayoutGuard(unittest.TestCase):
             "<td class=\"info\" align=\"center\">\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t180",
             "<td class=\"info\" align=\"center\">\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t120", 1)
         if html == read(LIVE):
-            self.skipTest("Whitespace der Fixture passt nicht auf das Muster")
+            self.skipTest("fixture whitespace does not match the pattern")
         with self.assertRaises(oz.LayoutError):
             oz.parse_html(html, strict=True)
 
@@ -165,7 +165,7 @@ class TestDayAssessment(unittest.TestCase):
         self.assertEqual(oz.day_assessment(None)["status"], "unknown")
 
     def test_is_independent_of_training_scale(self):
-        # Der ganze Sinn der Trennung: akut hoch, Tagesmittel noch niedrig.
+        # The whole point of the split: acute high, daily mean still low.
         self.assertEqual(oz.training_level(146)["status"], "serious")
         self.assertEqual(oz.day_assessment(111)["status"], "warning")
 
@@ -183,7 +183,7 @@ class TestTrend(unittest.TestCase):
 
     def test_delta_and_gaps(self):
         t = oz.trend_for([100, None, 140])
-        self.assertEqual(t["delta"], 40)       # None-Luecken werden uebersprungen
+        self.assertEqual(t["delta"], 40)       # None gaps are skipped
         self.assertEqual(t["dir"], "up")
 
 
@@ -199,11 +199,11 @@ class TestHistory(unittest.TestCase):
     def test_append_then_dedupe(self):
         self.assertTrue(oz.append_history(self.path, self.page))
         self.assertFalse(oz.append_history(self.path, self.page),
-                         "gleicher Quell-Zeitstempel darf nicht doppelt landen")
+                         "the same source timestamp must not be stored twice")
         self.assertEqual(len(self.path.read_text().strip().splitlines()), 1)
 
     def test_dedupe_is_on_source_time_not_fetch_time(self):
-        # Ein Cron alle 15 Minuten ruft dieselbe stuendliche Seite viermal ab.
+        # A cron every 15 minutes fetches the same hourly page four times.
         for _ in range(4):
             oz.append_history(self.path, self.page)
         self.assertEqual(len(oz.load_history(self.path)), 1)
@@ -227,7 +227,7 @@ class TestHistory(unittest.TestCase):
     def test_broken_line_does_not_kill_the_rest(self):
         oz.append_history(self.path, self.page)
         with self.path.open("a", encoding="utf-8") as fh:
-            fh.write("{ das ist kein json\n")
+            fh.write("{ this is not json\n")
         self.assertEqual(len(oz.load_history(self.path)), 1)
 
     def test_missing_file_is_empty(self):
@@ -235,7 +235,7 @@ class TestHistory(unittest.TestCase):
 
 
 def synth(hours, start_hour=0, base=100, amp=50):
-    """Deterministische Historie: base +/- amp mit Peak um 16 Uhr."""
+    """Deterministic history: base +/- amp with a peak around 16:00."""
     import math
     tz = oz._tz()
     t0 = datetime(2026, 8, 10, start_hour, 0, tzinfo=tz)
@@ -265,7 +265,7 @@ class TestHistorySeries(unittest.TestCase):
         self.assertEqual(set(s["akt_1h"]), set(oz.STATION_ORDER))
         for sid in oz.STATION_ORDER:
             self.assertEqual(len(s["akt_1h"][sid]), 10,
-                             "jede Serie muss so lang sein wie die Zeitachse")
+                             "every series must be as long as the time axis")
 
     def test_window_is_clipped(self):
         s = oz.history_series(synth(200), hours=24)
@@ -299,7 +299,7 @@ class TestHourProfile(unittest.TestCase):
             self.assertEqual(len(p["median_akt_1h"][sid]), 24)
 
     def test_best_window_lands_in_the_night_minimum(self):
-        # Peak liegt bei 16 Uhr, das Minimum also gegen 04 Uhr.
+        # The peak is at 16:00, so the minimum is around 04:00.
         p = oz.hour_profile(synth(72))
         bw = p["best_window"]
         self.assertEqual(bw["to_hour"] - bw["from_hour"], 3)
@@ -341,7 +341,7 @@ class TestBuildRecord(unittest.TestCase):
     def test_slots_are_stable_and_unique(self):
         slots = [s["slot"] for s in self.rec["stations"]]
         self.assertEqual(slots, [1, 2, 3, 4],
-                         "Farb-Slots muessen der Stationsreihenfolge folgen")
+                         "colour slots must follow the station order")
 
     def test_every_station_has_both_assessments(self):
         for s in self.rec["stations"]:
@@ -394,8 +394,8 @@ class TestDemo(unittest.TestCase):
                          [r.akt_1h for r in b.readings])
 
     def test_sulzberg_stays_higher_at_night(self):
-        # Physik-Plausibilitaet der Demo: Hoehenstation flacher und im Mittel
-        # hoeher als die Talstationen.
+        # Physical plausibility of the demo: the high-altitude station is
+        # flatter and on average higher than the valley stations.
         _, entries = oz.demo_history(24)
         night = [e for e in entries if datetime.fromisoformat(
             e["source_time"]).hour == 4]
@@ -444,7 +444,7 @@ class TestCli(unittest.TestCase):
             out = Path(d) / "data.json"
             oz.main(["--html", str(LIVE), "--out", str(out), "--quiet"])
             self.assertFalse((Path(d) / "data.json.tmp").exists(),
-                             "Temp-Datei muss weggeraeumt sein")
+                             "the temp file must be cleaned up")
 
 
 if __name__ == "__main__":

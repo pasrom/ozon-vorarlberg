@@ -1,50 +1,50 @@
 #!/usr/bin/env python3
 """
-ozon_vorarlberg.py — Ozon-Scraper und Historien-Logger fuer Vorarlberg.
+ozon_vorarlberg.py — ozone scraper and history logger for Vorarlberg.
 
-Datenquelle: https://www.vorarlberg-luft.at/tab1O3.htm
+Source: https://www.vorarlberg-luft.at/tab1O3.htm
 
-Die Seite ist ein serverseitig generierter, statischer HTML-Export (Generator:
-InterConnect Software, Layout seit 2004 unveraendert) und wird stuendlich neu
-geschrieben. Sie enthaelt pro Messstation genau fuenf Zahlen: den aktuellen
-1h-Mittelwert, Tagesmaximum 1h und 8h (gleitend) sowie die beiden
-Vortagsmaxima. Einen Zahlen-Verlauf gibt es NICHT — die verlinkten
-"Grafischer Verlauf"-Seiten enthalten nur ein fertig gerendertes JPEG.
+The page is a server-side generated static HTML export (generator:
+InterConnect Software, layout unchanged since 2004) and is rewritten hourly.
+It carries exactly five numbers per station: the current 1h mean, the daily
+maxima of the 1h and the running 8h mean, and the same two maxima for the
+previous day. There is NO numeric time series — the linked "graphical course"
+pages contain nothing but a pre-rendered JPEG.
 
-Deshalb baut dieses Skript die Historie selbst auf: jeder Abruf wird nach
-history.jsonl angehaengt (dedupliziert ueber den Zeitstempel der Quellseite),
-und daraus entsteht die Zeitreihe, die das Dashboard zeichnet.
+So this script builds the history itself: every fetch is appended to
+history.jsonl (deduplicated on the source page's own timestamp), and that is
+the series the dashboard draws.
 
-Bewertung — zwei getrennte Achsen, absichtlich nicht vermischt:
+Assessment — two separate axes, deliberately not mixed:
 
-  1. Trainings-Skala (auf dem AKTUELLEN 1h-Wert). Was du gerade atmest.
-     Pragmatische Skala, kein Rechtswert: die 100/120-Marken sind von den
-     8h-Richtwerten geliehen, 180 ist die echte oesterreichische
-     Informationsschwelle (1h).
-         < 100  good      frei      volle Einheit moeglich
-         < 120  warning   ok        lange harte Einheiten kuerzen
-         < 180  serious   locker    nur Grundlage, nichts Intensives
-         >=180  critical  drinnen   Informationsschwelle, Outdoor absagen
+  1. Training scale (on the CURRENT 1h value). What you are breathing now.
+     A pragmatic scale, not a legal limit: the 100/120 marks are borrowed from
+     the 8h guidelines, while 180 is the actual Austrian information
+     threshold (1h).
+         < 100  good      free      full session possible
+         < 120  warning   ok        shorten long hard blocks
+         < 180  serious   easy      base only, nothing intense
+         >=180  critical  indoors   information threshold, cancel outdoor sport
 
-  2. Tagesbewertung (auf dem Tagesmax. 8h-Mittel). Der gesundheitliche
-     Kontext des Tages, mit den echten Referenzwerten:
-         WHO-Kurzzeit-Leitwert 2021   100 ug/m3 (max. 8h-Tagesmittel)
-         EU-Zielwert                  120 ug/m3 (8h, gleitend)
-         AT-Informationsschwelle      180 ug/m3 (1h)
+  2. Daily assessment (on the daily maximum of the 8h mean). The health
+     context of the day, measured against the real reference values:
+         WHO short-term guideline 2021   100 ug/m3 (max. daily 8h mean)
+         EU target value                 120 ug/m3 (8h, running)
+         AT information threshold        180 ug/m3 (1h)
 
-Das alte Dashboard hat den 1h-Wert gross angezeigt, die Ampel aber nach dem
-8h-Tagesmaximum gefaerbt. Das ist irrefuehrend: um die Mittagszeit schleppt
-der gleitende 8h-Wert noch die kuehlen Morgenstunden mit und liegt deutlich
-unter dem, was gerade tatsaechlich in der Luft ist.
+The first dashboard showed the 1h value in large type but coloured the traffic
+light by the daily 8h maximum. That is misleading: around midday the running
+8h mean still drags the cool morning hours along and sits well below what is
+actually in the air.
 
-Aufrufe:
-    python3 ozon_vorarlberg.py                      # JSON auf stdout
-    python3 ozon_vorarlberg.py --compact            # eine Zeile pro Station
-    python3 ozon_vorarlberg.py --log --out data.json    # der Cron-Aufruf
+Usage:
+    python3 ozon_vorarlberg.py                      # JSON on stdout
+    python3 ozon_vorarlberg.py --compact            # one line per station
+    python3 ozon_vorarlberg.py --log --out data.json    # the cron invocation
     python3 ozon_vorarlberg.py --station lustenau
     python3 ozon_vorarlberg.py --html fixtures/tab1O3_live.htm   # offline
     python3 ozon_vorarlberg.py --watch 1800 --log --out data.json
-    python3 ozon_vorarlberg.py --demo --out data.json   # Demo-Historie
+    python3 ozon_vorarlberg.py --demo --out data.json   # demo history
 """
 
 from __future__ import annotations
@@ -65,23 +65,23 @@ from typing import Optional, Sequence
 URL = "https://www.vorarlberg-luft.at/tab1O3.htm"
 
 # ---------------------------------------------------------------------------
-# Referenzwerte (ug/m3)
+# Reference values (ug/m3)
 # ---------------------------------------------------------------------------
 
-WHO_SHORT_8H = 100   # WHO global air quality guidelines 2021, max. 8h-Tagesmittel
-EU_TARGET_8H = 120   # EU-Zielwert, 8h gleitend
-AT_INFO_1H = 180     # Oesterreichische Informationsschwelle, 1h
-WHO_PEAK_SEASON = 60  # WHO Langfrist (Mittel der 8h-Tagesmaxima, 6 Monate)
+WHO_SHORT_8H = 100   # WHO global air quality guidelines 2021, max. daily 8h mean
+EU_TARGET_8H = 120   # EU target value, running 8h
+AT_INFO_1H = 180     # Austrian information threshold, 1h
+WHO_PEAK_SEASON = 60  # WHO long-term (mean of daily 8h maxima, 6 months)
 
 # ---------------------------------------------------------------------------
-# Stationen
+# Stations
 #
-# Die Reihenfolge ist die Zuordnung der Farb-Slots im Dashboard und darf nicht
-# umsortiert werden: "Farbe folgt der Entitaet, nicht ihrem Rang". Sortiert
-# nach Hoehenlage aufsteigend — das ist gleichzeitig die inhaltliche Achse
-# (Talsohle -> Hoehenlage), an der sich der Ozon-Tagesgang aufspannt.
+# The order assigns the colour slots in the dashboard and must not be
+# reshuffled: "colour follows the entity, not its rank". Sorted by altitude
+# ascending — which is also the substantive axis (valley floor -> high
+# altitude) along which the ozone daily cycle plays out.
 #
-# Hoehenangaben sind Naeherungswerte und stammen NICHT aus der Quelle.
+# Altitudes are approximations and do NOT come from the source.
 # ---------------------------------------------------------------------------
 
 STATION_ORDER = ["ATVA002", "ATVA007", "ATVA009", "ATVA008"]
@@ -121,35 +121,35 @@ STATIONS: dict[str, dict] = {
     },
 }
 
-# Trainings-Skala auf dem akuten 1h-Wert: (obere Grenze, Status, Kurzwort, Text)
+# Training scale on the acute 1h value: (upper bound, status, word, advice)
 TRAINING_SCALE = [
-    (WHO_SHORT_8H, "good", "frei",
-     "Volle Einheit möglich, auch intensiv."),
+    (WHO_SHORT_8H, "good", "free",
+     "Full session possible, intervals included."),
     (EU_TARGET_8H, "warning", "ok",
-     "Kurze Einheiten unkritisch, lange harte Blocks kürzen."),
-    (AT_INFO_1H, "serious", "locker",
-     "Nur Grundlage und locker. Intervalle auf morgen früh verschieben."),
-    (None, "critical", "drinnen",
-     "Informationsschwelle erreicht. Outdoor-Sport absagen."),
+     "Short sessions are fine, shorten long hard blocks."),
+    (AT_INFO_1H, "serious", "easy",
+     "Base pace only. Move intervals to tomorrow morning."),
+    (None, "critical", "indoors",
+     "Information threshold reached. Cancel outdoor sport."),
 ]
 
 STATUS_ORDER = {"good": 0, "warning": 1, "serious": 2, "critical": 3, "unknown": -1}
 
 DEFAULT_HISTORY = "history.jsonl"
 DEFAULT_ARCHIVE = "archive.json"
-HISTORY_HOURS = 72          # wie viel Verlauf ins data.json wandert
-PROFILE_MIN_DAYS = 2        # ab wann ein Tagesgang-Profil sinnvoll ist
+HISTORY_HOURS = 72          # how much of the series goes into data.json
+PROFILE_MIN_DAYS = 2        # from how many days a daily profile is meaningful
 
 TZ_NAME = "Europe/Vienna"
 
 
 def _tz():
-    """Zeitzone der Quelle. Die Seite stempelt oesterreichische Lokalzeit."""
+    """Timezone of the source. The page stamps Austrian local time."""
     try:
         from zoneinfo import ZoneInfo
         return ZoneInfo(TZ_NAME)
     except Exception:
-        # Kein tzdata verfuegbar: lokale Systemzeitzone als Naeherung.
+        # No tzdata available: fall back to the local system timezone.
         return datetime.now().astimezone().tzinfo
 
 
@@ -159,7 +159,7 @@ def _tz():
 
 
 class LayoutError(RuntimeError):
-    """Die Quellseite sieht nicht mehr aus wie erwartet."""
+    """The source page no longer looks the way we expect."""
 
 
 @dataclass
@@ -167,11 +167,11 @@ class Reading:
     id: str
     station: str
     short: str
-    akt_1h: Optional[int]
-    max_1h: Optional[int]
-    max_8h: Optional[int]
-    prev_max_1h: Optional[int]
-    prev_max_8h: Optional[int]
+    akt_1h: Optional[int]        # current 1h mean
+    max_1h: Optional[int]        # daily maximum, 1h mean
+    max_8h: Optional[int]        # daily maximum, running 8h mean
+    prev_max_1h: Optional[int]   # previous day, 1h
+    prev_max_8h: Optional[int]   # previous day, 8h
 
 
 @dataclass
@@ -189,11 +189,11 @@ _STAT_HREF = re.compile(r"stat(AT[A-Z0-9]+)\.htm", re.I)
 
 
 def _to_int(cell: str) -> Optional[int]:
-    """Tabellenzelle -> int. '-', leer, Einheit oder nicht-numerisch -> None."""
+    """Table cell -> int. '-', empty, a unit or non-numeric -> None."""
     cell = cell.replace("\xa0", " ").strip()
     if not cell or cell.strip("-. ") == "":
         return None
-    if _UNIT.search(cell):       # "ug/m3" enthaelt eine 3 — nicht als Wert lesen
+    if _UNIT.search(cell):       # "ug/m3" contains a 3 — never read it as a value
         return None
     m = _NUM.search(cell.replace(",", "."))
     return int(m.group()) if m else None
@@ -217,16 +217,16 @@ def _parse_source_time(text: str) -> tuple[Optional[datetime], Optional[str]]:
 
 
 def parse_html(html: str, strict: bool = False) -> Page:
-    """Ozon-Tabelle aus dem Seiten-HTML lesen.
+    """Read the ozone table out of the page HTML.
 
-    Stationszeilen werden ueber den Link auf ihre Detailseite erkannt
-    (``statATVA007.htm`` -> ``ATVA007``). Die Stations-ID ist stabiler als der
-    Anzeigename, der Tippfehler und Umbenennungen ueberleben muss.
+    Station rows are recognised by the link to their detail page
+    (``statATVA007.htm`` -> ``ATVA007``). The station ID is more stable than
+    the display name, which has to survive typos and renamings.
     """
     try:
         from bs4 import BeautifulSoup
     except ImportError:
-        sys.exit("Fehlende Abhaengigkeit: pip install -r requirements.txt")
+        sys.exit("Missing dependency: pip install -r requirements.txt")
 
     try:
         soup = BeautifulSoup(html, "lxml")
@@ -242,11 +242,11 @@ def parse_html(html: str, strict: bool = False) -> Page:
     seen: set[str] = set()
 
     for row in soup.find_all("tr"):
-        # Die Quelle verschachtelt Layout-Tabellen: der aeussere Wrapper-<tr>
-        # umschliesst die komplette Werte-Tabelle und enthaelt damit auch deren
-        # ersten Stations-Link. Ohne diesen Filter wird er als Datenzeile
-        # gelesen, belegt die Stations-ID mit Muell und die echte Zeile fliegt
-        # danach als Duplikat raus.
+        # The source nests layout tables: the outer wrapper <tr> encloses the
+        # whole values table and therefore also carries its first station
+        # link. Without this filter it is read as a data row, claims the
+        # station ID with garbage, and the real row is then dropped as a
+        # duplicate.
         if row.find("table") is not None:
             continue
 
@@ -254,8 +254,8 @@ def parse_html(html: str, strict: bool = False) -> Page:
         if not cells:
             continue
 
-        # Schwellwert-Zeile mitnehmen: die Seite dokumentiert ihre eigenen
-        # Grenzwerte, das ist ein guter Plausibilitaetscheck.
+        # Pick up the threshold row: the page documents its own limits, which
+        # makes a good sanity check.
         if cells[0].lower().startswith("schwellwert"):
             page.thresholds_on_page = [_to_int(c) for c in cells[1:6]]
             continue
@@ -266,7 +266,7 @@ def parse_html(html: str, strict: bool = False) -> Page:
             m = _STAT_HREF.search(link.get("href", ""))
             sid = m.group(1).upper() if m else None
         if sid is None:
-            # Fallback: Name-Matching, falls die Detaillinks je verschwinden.
+            # Fallback: name matching, in case the detail links ever vanish.
             label = cells[0].lower()
             sid = next(
                 (k for k, v in STATIONS.items() if v["name"].lower() in label
@@ -275,7 +275,7 @@ def parse_html(html: str, strict: bool = False) -> Page:
             )
         if sid is None or sid in seen:
             continue
-        if len(cells) < 6:          # Name + 5 Werte; alles darunter ist Deko
+        if len(cells) < 6:          # name + 5 values; anything less is chrome
             continue
         seen.add(sid)
 
@@ -307,49 +307,49 @@ def parse_html(html: str, strict: bool = False) -> Page:
 
 
 def _check_layout(page: Page) -> None:
-    """Laut scheitern, wenn sich die Quelle strukturell veraendert hat.
+    """Fail loudly when the source has changed structurally.
 
-    Lieber ein harter Fehler als stillschweigend falsch zugeordnete Spalten.
+    A hard error beats silently misassigned columns.
     """
     problems = []
     if not page.readings:
-        problems.append("keine Stationszeile erkannt")
+        problems.append("no station row recognised")
     missing = set(STATION_ORDER) - {r.id for r in page.readings}
     if missing:
-        problems.append(f"Stationen fehlen: {sorted(missing)}")
+        problems.append(f"stations missing: {sorted(missing)}")
     if page.source_time is None:
-        problems.append("kein Zeitstempel in der Ueberschrift gefunden")
+        problems.append("no timestamp found in the heading")
     got = page.thresholds_on_page
     want = [AT_INFO_1H, AT_INFO_1H, EU_TARGET_8H, AT_INFO_1H, EU_TARGET_8H]
     if got and got != want:
-        problems.append(f"Schwellwert-Zeile {got}, erwartet {want} "
-                        "(Spaltenreihenfolge kann sich geaendert haben)")
+        problems.append(f"threshold row {got}, expected {want} "
+                        "(column order may have changed)")
     if problems:
-        raise LayoutError("Quellseiten-Layout unerwartet: " + "; ".join(problems))
+        raise LayoutError("unexpected source page layout: " + "; ".join(problems))
 
 
 def fetch(url: str = URL, timeout: int = 20) -> str:
-    """Seite holen und korrekt dekodieren.
+    """Fetch the page and decode it correctly.
 
-    Die Seite deklariert iso-8859-1 und haelt sich daran. Auf
-    ``apparent_encoding`` zu raten ist unnoetig und ging bei kurzen Seiten
-    schon schief — Umlaute in "Luftqualitaet" landeten als Mojibake im JSON.
+    The page declares iso-8859-1 and sticks to it. Guessing via
+    ``apparent_encoding`` is unnecessary and has gone wrong on short pages
+    before — umlauts in "Luftqualitaet" ended up as mojibake in the JSON.
     """
-    # Der Filter muss UM den Import liegen, nicht dahinter: urllib3 gibt seine
-    # LibreSSL-Meldung beim Import ab, den requests ausloest. Das System-Python
-    # von macOS ist gegen LibreSSL gebaut, deshalb erscheint sie dort bei jedem
-    # Lauf und wuerde das Cron-Log zumuellen. Eng begrenzt auf diese eine
-    # Anweisung; ein Python von Homebrew braucht das gar nicht.
+    # The filter has to wrap the import, not follow it: urllib3 emits its
+    # LibreSSL notice at import time, triggered by requests. macOS system
+    # Python is built against LibreSSL, so it shows up on every run there and
+    # would clutter the cron log. Scoped tightly to this one statement; a
+    # Homebrew Python does not need it at all.
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         try:
             import requests
         except ImportError:
-            sys.exit("Fehlende Abhaengigkeit: pip install -r requirements.txt")
+            sys.exit("Missing dependency: pip install -r requirements.txt")
 
     headers = {
-        "User-Agent": "ozon-vorarlberg/2.0 (privat, stuendlich)",
+        "User-Agent": "ozon-vorarlberg/2.0 (personal, hourly)",
         "Accept": "text/html,application/xhtml+xml",
     }
     resp = requests.get(url, headers=headers, timeout=timeout)
@@ -364,32 +364,32 @@ def fetch(url: str = URL, timeout: int = 20) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Bewertung
+# Assessment
 # ---------------------------------------------------------------------------
 
 
 def training_level(akt_1h: Optional[int]) -> dict:
-    """Trainings-Ampel auf dem akuten 1h-Wert."""
+    """Training traffic light on the acute 1h value."""
     if akt_1h is None:
-        return {"status": "unknown", "word": "keine Daten",
-                "advice": "Station liefert gerade keinen Wert."}
+        return {"status": "unknown", "word": "no data",
+                "advice": "Station is not reporting a value right now."}
     for limit, status, word, advice in TRAINING_SCALE:
         if limit is None or akt_1h < limit:
             return {"status": status, "word": word, "advice": advice}
-    return {"status": "critical", "word": "drinnen", "advice": ""}
+    return {"status": "critical", "word": "indoors", "advice": ""}
 
 
 def day_assessment(max_8h: Optional[int]) -> dict:
-    """Gesundheitliche Tagesbewertung auf dem 8h-Tagesmaximum."""
+    """Health assessment of the day, on the daily 8h maximum."""
     if max_8h is None:
-        return {"status": "unknown", "label": "keine Daten",
+        return {"status": "unknown", "label": "no data",
                 "vs_who": None, "vs_eu": None}
     if max_8h >= EU_TARGET_8H:
-        label, status = "über EU-Zielwert", "serious"
+        label, status = "above EU target", "serious"
     elif max_8h >= WHO_SHORT_8H:
-        label, status = "über WHO-Leitwert", "warning"
+        label, status = "above WHO guideline", "warning"
     else:
-        label, status = "unter WHO-Leitwert", "good"
+        label, status = "below WHO guideline", "good"
     return {
         "status": status,
         "label": label,
@@ -399,7 +399,7 @@ def day_assessment(max_8h: Optional[int]) -> dict:
 
 
 def trend_for(series: list[Optional[int]], flat_band: int = 5) -> dict:
-    """Trend aus den letzten geloggten Werten. Braucht mindestens zwei."""
+    """Trend from the last logged values. Needs at least two."""
     vals = [v for v in series if v is not None]
     if len(vals) < 2:
         return {"dir": "unknown", "delta": None, "arrow": "–"}
@@ -412,7 +412,7 @@ def trend_for(series: list[Optional[int]], flat_band: int = 5) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Historie
+# History
 # ---------------------------------------------------------------------------
 
 
@@ -428,17 +428,17 @@ def load_history(path: str | os.PathLike) -> list[dict]:
         try:
             out.append(json.loads(line))
         except json.JSONDecodeError:
-            continue          # eine kaputte Zeile darf den Rest nicht killen
+            continue          # one broken line must not kill the rest
     out.sort(key=lambda e: e.get("source_time") or "")
     return out
 
 
 def append_history(path: str | os.PathLike, page: Page) -> bool:
-    """Snapshot anhaengen. False, wenn dieser Quell-Zeitstempel schon drin ist.
+    """Append a snapshot. False if this source timestamp is already present.
 
-    Dedupliziert wird ueber den Zeitstempel der QUELLE, nicht ueber die
-    Abrufzeit: die Seite wird stuendlich neu geschrieben, ein Cron alle 15
-    Minuten wuerde sonst denselben Messwert viermal in die Reihe legen.
+    Deduplication runs on the SOURCE timestamp, not on the fetch time: the
+    page is rewritten hourly, so a cron every 15 minutes would otherwise put
+    the same reading into the series four times.
     """
     if page.source_time is None:
         return False
@@ -470,13 +470,13 @@ def append_history(path: str | os.PathLike, page: Page) -> bool:
 
 
 def prune_history(path: str | os.PathLike, keep_days: int = 3) -> int:
-    """Alte Zeilen aus history.jsonl entfernen. Gibt die Zahl der Entfernten.
+    """Drop old lines from history.jsonl. Returns how many were removed.
 
-    Das Log ist nur eine Bruecke bis das EEA-Archiv denselben Zeitraum
-    nachliefert. Weil die EEA ihren Container nur etwa einmal taeglich neu
-    schreibt, schwankt dieser Verzug zwischen rund 1 und rund 25 Stunden — das
-    72-h-Fenster des Dashboards traegt deshalb das Log allein. Alles was aelter
-    als vier Tage ist, wird nie wieder gebraucht.
+    The log is only a bridge until the EEA archive covers the same period.
+    Because the EEA rewrites its container only about once per day, that lag
+    swings between roughly 1 and roughly 25 hours — which is why the log alone
+    carries the dashboard's 72 h window. Anything older than four days is
+    never needed again.
     """
     p = Path(path)
     if not p.exists():
@@ -508,21 +508,20 @@ def prune_history(path: str | os.PathLike, keep_days: int = 3) -> int:
 
 def history_series(entries: list[dict], hours: int = HISTORY_HOURS,
                    archive: Optional[dict] = None) -> dict:
-    """Verlaufsreihe fuer das Dashboard, aus zwei Quellen zusammengefuegt.
+    """Series for the dashboard, assembled from two sources.
 
-    Das EEA-Archiv liefert geprueft gemessene Stundenwerte, wird aber nur etwa
-    einmal taeglich neu geschrieben — sein Verzug schwankt zwischen rund 1 und
-    rund 25 Stunden. Es taugt daher zur Erstbefuellung, nicht als Fueller fuer
-    die letzten Stunden. Dauerhaft traegt das eigene Log das 72-h-Fenster.
-    Solange es noch nicht so weit zurueckreicht, springt das Archiv ein.
+    The EEA archive supplies validated hourly measurements but is rewritten
+    only about once per day — its lag swings between roughly 1 and roughly 25
+    hours. That makes it good for the initial fill, not for covering the last
+    few hours. In steady state the local log carries the 72 h window; while it
+    does not yet reach back that far, the archive stands in.
 
-    Beide Reihen sind nach FENSTERENDE beschriftet: history.jsonl uebernimmt
-    die Zeitstempel der Landesseite, und eea_archive.recent_series rechnet
-    dafuer eigens von Start auf Ende um. Ohne das lagen sie um eine Stunde
-    versetzt aneinander.
+    Both series are labelled by WINDOW END: history.jsonl adopts the source
+    page's timestamps, and eea_archive.recent_series converts from start to
+    end specifically for this. Without that they would sit an hour apart.
 
-    Bei gleichem Zeitstempel gewinnt das Archiv — das ist der eigentliche
-    Messwert, waehrend das Log nur die gerundete Anzeige der Seite mitschreibt.
+    On identical timestamps the archive wins — that is the actual measurement,
+    whereas the log only records the page's rounded display value.
     """
     per_station: dict[str, dict[str, float]] = {sid: {} for sid in STATION_ORDER}
     from_log: set[tuple[str, str]] = set()
@@ -547,7 +546,7 @@ def history_series(entries: list[dict], hours: int = HISTORY_HOURS,
             for ts, v in zip(rec.get("t", []), rec.get("v", [])):
                 if v is None:
                     continue
-                per_station[sid][ts] = float(v)      # Archiv gewinnt
+                per_station[sid][ts] = float(v)      # archive wins
                 from_archive.add((sid, ts))
                 from_log.discard((sid, ts))
 
@@ -565,8 +564,8 @@ def history_series(entries: list[dict], hours: int = HISTORY_HOURS,
 
     akt = {sid: [per_station[sid].get(t) for t in all_ts] for sid in STATION_ORDER}
 
-    # max_8h bleibt aus dem Eigenlog: es ist ein Tagesmaximum und im Verlauf
-    # ohnehin nicht gezeichnet.
+    # max_8h stays from the local log: it is a daily maximum and is not drawn
+    # in the series anyway.
     m8_by_ts = {sid: {} for sid in STATION_ORDER}
     for e in entries:
         st = e.get("source_time")
@@ -605,10 +604,10 @@ def _median(vals: Sequence[Optional[float]]) -> Optional[float]:
 
 
 def hour_profile(entries: list[dict]) -> dict:
-    """Tagesgang pro Station: Median des 1h-Werts je Stunde des Tages.
+    """Daily cycle per station: median 1h value per hour of the day.
 
-    Erst ab ``PROFILE_MIN_DAYS`` verschiedenen Tagen sinnvoll — vorher ist das
-    kein Profil, sondern nur der eine geloggte Tag mit Extra-Schritten.
+    Only meaningful from ``PROFILE_MIN_DAYS`` distinct days onwards — before
+    that it is not a profile, just the one logged day with extra steps.
     """
     buckets: dict[str, dict[int, list[int]]] = {sid: {} for sid in STATION_ORDER}
     days: set[str] = set()
@@ -645,7 +644,7 @@ def hour_profile(entries: list[dict]) -> dict:
 
 
 def best_window(profile: dict, width: int = 3) -> Optional[dict]:
-    """Sauberstes zusammenhaengendes Zeitfenster ueber alle Stationen."""
+    """Cleanest contiguous time window across all stations."""
     hourly = []
     for h in range(24):
         vals = [profile[sid][h] for sid in profile if profile[sid][h] is not None]
@@ -664,13 +663,13 @@ def best_window(profile: dict, width: int = 3) -> Optional[dict]:
 
 
 # ---------------------------------------------------------------------------
-# EEA-Archiv (optional)
+# EEA archive (optional)
 # ---------------------------------------------------------------------------
 
 
 def load_archive(path: str | os.PathLike) -> Optional[dict]:
-    """archive.json einlesen, falls vorhanden. Fehlt es, laeuft alles weiter —
-    dann eben nur mit der selbst geloggten Historie."""
+    """Read archive.json if present. If it is missing everything still runs —
+    just without the long-term metrics."""
     p = Path(path)
     if not p.exists():
         return None
@@ -682,18 +681,18 @@ def load_archive(path: str | os.PathLike) -> Optional[dict]:
 
 
 def percentile_of(reference_sorted: list[int], value: Optional[int]) -> Optional[int]:
-    """Wo liegt der heutige Tageswert in der Referenzverteilung der Vorjahre."""
+    """Where today's daily value sits in the reference distribution."""
     if value is None or not reference_sorted:
         return None
     return round(100 * bisect_left(reference_sorted, value) / len(reference_sorted))
 
 
 def archive_block(archive: Optional[dict], readings: list[Reading]) -> Optional[dict]:
-    """Archivkennzahlen fuer data.json aufbereiten.
+    """Prepare the archive metrics for data.json.
 
-    Der Tageswert kommt bewusst aus der LIVE-Quelle, nicht aus dem Archiv: das
-    Archiv hinkt 1 bis 25 Stunden nach, sein Maximum fuer den laufenden Tag
-    ist also unvollstaendig.
+    Today's value deliberately comes from the LIVE source, not the archive:
+    the archive lags 1 to 25 hours behind, so its maximum for the running day
+    is incomplete.
     """
     if not archive:
         return None
@@ -735,7 +734,7 @@ def archive_block(archive: Optional[dict], readings: list[Reading]) -> Optional[
 
 
 # ---------------------------------------------------------------------------
-# Ausgabe
+# Output
 # ---------------------------------------------------------------------------
 
 
@@ -756,7 +755,7 @@ def build_record(page: Page, entries: list[dict], demo: bool = False,
             "station": r.station,
             "short": r.short,
             "chart_label": meta.get("chart", r.short),
-            "slot": idx + 1,                    # fixer Farb-Slot im Dashboard
+            "slot": idx + 1,                    # fixed colour slot in the dashboard
             "altitude_m_approx": meta.get("altitude_m_approx"),
             "kind": meta.get("kind"),
             "region": meta.get("region"),
@@ -824,7 +823,7 @@ def build_record(page: Page, entries: list[dict], demo: bool = False,
 
 def print_compact(rec: dict) -> None:
     print(f"# {rec.get('source_time_raw') or '?'}  "
-          f"(Quelle: vorarlberg-luft.at)")
+          f"(source: vorarlberg-luft.at)")
     for s in rec["stations"]:
         t = s["training"]
         print(f"{t['status']:9} {t['word']:8} {s['short']:16} "
@@ -835,45 +834,46 @@ def print_compact(rec: dict) -> None:
               f"[{s['day']['label']}]")
     su = rec["summary"]
     if su["cleanest"]:
-        print(f"\n-> Sauberste Station: {su['cleanest']} "
+        print(f"\n-> Cleanest station: {su['cleanest']} "
               f"({su['cleanest_value']} ug/m3)")
     arc = rec.get("archive")
     if arc:
         bw = arc.get("overall_best_window") or {}
-        print(f"-> Archiv: {arc['total_hours']} Stundenwerte, "
+        print(f"-> Archive: {arc['total_hours']} hourly values, "
               f"{arc['years'][0]}-{arc['years'][-1]}")
         if bw:
             span = f"{arc['years'][0]}-{arc['years'][-1]}" if arc.get("years") else "?"
-            print(f"-> Bestes Trainingsfenster ({span}, Saisondaten): "
-                  f"{bw['from_hour']:02d}-{bw['to_hour']:02d} Uhr, "
-                  f"Median {bw['mean']} ug/m3")
+            print(f"-> Best training window ({span}, season data): "
+                  f"{bw['from_hour']:02d}-{bw['to_hour']:02d}, "
+                  f"median {bw['mean']} ug/m3")
         for st in arc["stations"]:
             c = st.get("context") or {}
             if c.get("percentile") is not None:
-                print(f"   {st['short']:16} heute {c['today_max_1h']:>3} "
-                      f"= {c['percentile']:>3}. Perzentil "
-                      f"(Median {c['median']}, Max {c['max']} seit "
+                print(f"   {st['short']:16} today {c['today_max_1h']:>3} "
+                      f"= {c['percentile']:>3}th percentile "
+                      f"(median {c['median']}, max {c['max']} since "
                       f"{c['years'][0]})")
     h = rec["history"]
-    print(f"-> Historie: {h['points']} "
-          f"Punkt{'' if h['points'] == 1 else 'e'} / {h['span_hours']} h")
+    print(f"-> History: {h['points']} "
+          f"point{'' if h['points'] == 1 else 's'} / {h['span_hours']} h")
 
 
 # ---------------------------------------------------------------------------
-# Demo-Daten
+# Demo data
 # ---------------------------------------------------------------------------
 
 
 def demo_history(hours: int = 48) -> tuple[Page, list[dict]]:
-    """Plausible Historie synthetisieren, damit das Dashboard sofort was zeigt.
+    """Synthesise a plausible history so the dashboard shows something at once.
 
-    Deterministisch (kein Zufall), damit die Demo reproduzierbar bleibt.
-    Physik grob nachgebaut: Talstationen mit tiefem Nachtminimum und
-    Nachmittagspeak, Sulzberg als Hoehenstation flach und durchgehend hoch.
+    Deterministic (no randomness) so the demo stays reproducible. The physics
+    is roughly reproduced: valley stations with a deep night minimum and an
+    afternoon peak, Sulzberg as the high-altitude station flat and constantly
+    elevated.
     """
     tz = _tz()
     now = datetime.now(tz).replace(minute=0, second=0, microsecond=0)
-    shape = {                     # (Mittelwert, Amplitude, Peak-Stunde)
+    shape = {                     # (mean, amplitude, peak hour)
         "ATVA002": (105, 60, 16),
         "ATVA007": (100, 55, 16),
         "ATVA009": (95, 45, 15),
@@ -883,7 +883,7 @@ def demo_history(hours: int = 48) -> tuple[Page, list[dict]]:
     entries = []
     for back in range(hours, -1, -1):
         ts = now - timedelta(hours=back)
-        day_damp = 1.0 - 0.12 * (back // 24)      # Vortage leicht schwaecher
+        day_damp = 1.0 - 0.12 * (back // 24)      # earlier days slightly weaker
         stations = {}
         for sid, (base, amp, peak) in shape.items():
             phase = (ts.hour - peak) / 24 * 2 * math.pi
@@ -930,40 +930,40 @@ def demo_history(hours: int = 48) -> tuple[Page, list[dict]]:
 
 def main(argv: Optional[list[str]] = None) -> int:
     ap = argparse.ArgumentParser(
-        description="Ozon Vorarlberg — Scraper, Historien-Logger, Bewertung",
+        description="Ozone Vorarlberg — scraper, history logger, assessment",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="Cron-Zeile:  ozon_vorarlberg.py --log --out data.json --quiet",
+        epilog="cron line:  ozon_vorarlberg.py --log --out data.json --quiet",
     )
-    ap.add_argument("--station", help="nur Stationen, die auf diesen Text passen")
-    ap.add_argument("--html", help="lokale HTML-Datei parsen statt abrufen")
-    ap.add_argument("--url", default=URL, help="abweichende Quell-URL")
-    ap.add_argument("--out", metavar="DATEI",
-                    help="JSON in diese Datei schreiben (fuer das Dashboard)")
+    ap.add_argument("--station", help="only stations matching this text")
+    ap.add_argument("--html", help="parse a local HTML file instead of fetching")
+    ap.add_argument("--url", default=URL, help="alternative source URL")
+    ap.add_argument("--out", metavar="FILE",
+                    help="write JSON to this file (for the dashboard)")
     ap.add_argument("--log", action="store_true",
-                    help="Snapshot an die Historie anhaengen")
-    ap.add_argument("--history", default=DEFAULT_HISTORY, metavar="DATEI",
-                    help=f"Pfad der Historien-Datei (Default: {DEFAULT_HISTORY})")
-    ap.add_argument("--prune-history", type=int, default=None, metavar="TAGE",
-                    help="Log-Zeilen aelter als N Tage entfernen (empfohlen: 3)")
-    ap.add_argument("--archive", default=DEFAULT_ARCHIVE, metavar="DATEI",
-                    help="EEA-Archiv aus eea_archive.py --build. Fehlt es, "
-                         "laeuft alles ohne Langzeitkennzahlen weiter.")
+                    help="append a snapshot to the history")
+    ap.add_argument("--history", default=DEFAULT_HISTORY, metavar="FILE",
+                    help=f"path of the history file (default: {DEFAULT_HISTORY})")
+    ap.add_argument("--prune-history", type=int, default=None, metavar="DAYS",
+                    help="drop log lines older than N days (recommended: 4)")
+    ap.add_argument("--archive", default=DEFAULT_ARCHIVE, metavar="FILE",
+                    help="EEA archive from eea_archive.py --build. If absent, "
+                         "everything runs on without long-term metrics.")
     ap.add_argument("--no-archive", action="store_true",
-                    help="Archiv ignorieren, auch wenn es da ist")
-    ap.add_argument("--watch", type=int, metavar="SEKUNDEN",
-                    help="Endlosschleife, alle N Sekunden neu abrufen")
+                    help="ignore the archive even when present")
+    ap.add_argument("--watch", type=int, metavar="SECONDS",
+                    help="loop forever, refetch every N seconds")
     ap.add_argument("--compact", action="store_true",
-                    help="Klartext statt JSON, eine Zeile pro Station")
+                    help="plain text instead of JSON, one line per station")
     ap.add_argument("--strict", action="store_true",
-                    help="mit Fehler abbrechen, wenn das Layout unerwartet ist")
+                    help="abort with an error when the layout is unexpected")
     ap.add_argument("--demo", action="store_true",
-                    help="synthetische Demo-Daten statt Abruf")
+                    help="synthetic demo data instead of fetching")
     ap.add_argument("--quiet", action="store_true",
-                    help="keine Ausgabe auf stdout (nur --out schreiben)")
+                    help="no output on stdout (only write --out)")
     args = ap.parse_args(argv)
 
     if args.demo and (args.html or args.log):
-        ap.error("--demo laesst sich nicht mit --html oder --log kombinieren")
+        ap.error("--demo cannot be combined with --html or --log")
 
     def run_once() -> int:
         if args.demo:
@@ -974,7 +974,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             if args.html:
                 html = Path(args.html).read_bytes().decode(
                     "iso-8859-1", errors="replace")
-                # Fixtures duerfen UTF-8 sein; nur umschalten, wenn es passt.
+                # Fixtures may be UTF-8; only switch when it actually decodes.
                 try:
                     text = Path(args.html).read_text(encoding="utf-8")
                     if "�" not in text:
@@ -987,11 +987,11 @@ def main(argv: Optional[list[str]] = None) -> int:
             try:
                 page = parse_html(html, strict=args.strict)
             except LayoutError as exc:
-                print(f"FEHLER: {exc}", file=sys.stderr)
+                print(f"ERROR: {exc}", file=sys.stderr)
                 return 2
 
             if not page.readings:
-                print("Keine Station erkannt — Layout der Quelle geaendert?",
+                print("No station recognised — source layout changed?",
                       file=sys.stderr)
                 return 2
 
@@ -999,13 +999,13 @@ def main(argv: Optional[list[str]] = None) -> int:
                 added = append_history(args.history, page)
                 if not args.quiet and not args.compact:
                     print(
-                        f"# Historie: {'neuer Eintrag' if added else 'unveraendert'}"
+                        f"# history: {'new entry' if added else 'unchanged'}"
                         f" ({args.history})", file=sys.stderr)
 
             if args.prune_history:
                 gone = prune_history(args.history, args.prune_history)
                 if gone and not args.quiet:
-                    print(f"# Historie: {gone} alte Zeilen entfernt",
+                    print(f"# history: {gone} old lines removed",
                           file=sys.stderr)
             entries = load_history(args.history)
 
@@ -1016,7 +1016,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                              or needle in r.short.lower()
                              or needle == r.id.lower()]
             if not page.readings:
-                print(f"Keine Station passt auf {args.station!r}.",
+                print(f"No station matches {args.station!r}.",
                       file=sys.stderr)
                 return 1
 
@@ -1028,7 +1028,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             tmp = out.with_suffix(out.suffix + ".tmp")
             tmp.write_text(json.dumps(rec, ensure_ascii=False, indent=2),
                            encoding="utf-8")
-            tmp.replace(out)      # atomar: das Dashboard liest nie halbe Datei
+            tmp.replace(out)      # atomic: the dashboard never reads a half file
 
         if not args.quiet:
             if args.compact:
@@ -1037,8 +1037,8 @@ def main(argv: Optional[list[str]] = None) -> int:
                 print(json.dumps(rec, ensure_ascii=False, indent=2))
             else:
                 n = rec["history"]["points"]
-                print(f"{args.out} geschrieben "
-                      f"({n} Historienpunkt{'' if n == 1 else 'e'}).")
+                print(f"{args.out} written "
+                      f"({n} history point{'' if n == 1 else 's'}).")
         return 0
 
     if args.watch:
@@ -1047,8 +1047,8 @@ def main(argv: Optional[list[str]] = None) -> int:
                 run_once()
             except KeyboardInterrupt:
                 return 130
-            except Exception as exc:                  # Schleife muss weiterlaufen
-                print(f"Abruf fehlgeschlagen: {exc}", file=sys.stderr)
+            except Exception as exc:                  # the loop must keep going
+                print(f"fetch failed: {exc}", file=sys.stderr)
             time.sleep(args.watch)
     return run_once()
 
