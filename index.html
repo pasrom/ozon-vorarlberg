@@ -1043,15 +1043,25 @@ function renderChart(win){
   s.onblur = clear;
 
   const nActive = drawable.length;
+  // Count the split over the VISIBLE window, not over the whole series.
+  // history.sources covers all 72 h, so on the 24 h and 48 h ranges it
+  // reported numbers that had nothing to do with what is on screen.
   const src = (state.data.history || {}).sources || {};
+  const until = parseTs(src.archive_until);
   let origin = "";
-  if (src.archive){
-    const until = parseTs(src.archive_until);
-    origin = ` · ${src.archive} values from the EEA archive` +
-      (until ? ` (up to ${hhmm(until)})` : "") +
-      (src.log ? `, ${src.log} from the local log after that` : "");
-  } else if (src.log){
-    origin = ` · ${src.log} values from the local log`;
+  if (until || src.log){
+    let nArc = 0, nLog = 0;
+    for (const ser of drawable){
+      for (let i = 0; i < win.times.length; i++){
+        if (ser.vals[i] === null || ser.vals[i] === undefined) continue;
+        if (until && win.times[i] <= until) nArc++; else nLog++;
+      }
+    }
+    const parts = [];
+    if (nArc) parts.push(`${nArc} from the EEA archive` +
+                         (until ? ` (up to ${hhmm(until)})` : ""));
+    if (nLog) parts.push(`${nLog} from the local log`);
+    if (parts.length) origin = " · " + parts.join(", ");
   }
   $("chNote").textContent =
     `${win.times.length} readings · ${nActive} of ${win.series.length} ` +
