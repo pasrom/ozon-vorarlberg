@@ -368,6 +368,19 @@ treatment:
 | 2 | page layout no longer matches | **alarm at once** — the numbers could be wrong |
 | 3 | source unreachable | stay quiet, count; alarm from the 3rd run in a row (~1 h) |
 
+Every message carries a clock time and names the value the page is still
+showing, so a delayed or duplicated delivery can be told apart from a new
+incident without digging through the log — that happened on the first day:
+
+```
+Ozone Vorarlberg 13:28 — source unreachable since 12:27 (3 runs).
+                         Site still shows 15.08.2026 11:00.
+Ozone Vorarlberg 13:30 — back after an outage since 12:27.
+```
+
+The all-clear is only sent when an alarm actually went out; recovering from
+one or two quiet failures is not news.
+
 `fetch()` retries three times with backoff first, so a single blip never even
 reaches the counter. The source is a small municipal server that drops out for
 short stretches — on 2026-08-15 it was unreachable at the TCP connect stage

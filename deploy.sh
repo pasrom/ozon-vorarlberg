@@ -76,11 +76,24 @@ log()   { echo "[$(stamp)] $*" | tee -a "$LOG"; }
 
 # Telegram on failure only. If sending itself fails, that must not abort the
 # job on top of the original error — the original error is what matters.
+# Every message carries a clock time. Without it a repeated or delayed
+# delivery is indistinguishable from a new incident — which happened: the
+# same outage notice arrived twice and had to be traced through the log to
+# tell whether anything was actually wrong.
 alarm() {
     [ -x "$NOTIFY" ] || return 0
     [ -r "$SECRETS" ] || return 0
-    ( set -a; . "$SECRETS"; set +a; "$NOTIFY" "Ozone Vorarlberg: $1" ) \
+    ( set -a; . "$SECRETS"; set +a; "$NOTIFY" "Ozone Vorarlberg $(date '+%H:%M') — $1" ) \
         >/dev/null 2>&1 || true
+}
+
+# What the published page currently shows, so a message is self-contained.
+shown_now() {
+    "$PY" -c 'import json,sys
+try:
+    print(json.load(open(sys.argv[1])).get("source_time_raw") or "unknown")
+except Exception:
+    print("unknown")' "$REPO_DIR/data.json" 2>/dev/null || echo "unknown"
 }
 
 fail() { log "ERROR: $*"; alarm "$1"; exit 1; }
@@ -116,6 +129,7 @@ trap cleanup EXIT
 #
 # Consecutive network failures are counted in the state directory.
 FAILS_FILE="$STATE_DIR/consecutive_fetch_failures"
+SINCE_FILE="$STATE_DIR/outage_since"
 ALARM_AFTER=3        # ~1 hour of silence at three runs per hour
 
 log "fetching vorarlberg-luft.at"
@@ -132,11 +146,12 @@ case "$RC" in
        ;;
     3) N=$(( $(cat "$FAILS_FILE" 2>/dev/null || echo 0) + 1 ))
        echo "$N" > "$FAILS_FILE"
+       [ -f "$SINCE_FILE" ] || date '+%H:%M' > "$SINCE_FILE"
        if [ "$N" -ge "$ALARM_AFTER" ]; then
            log "source unreachable, $N runs in a row"
            # Only shout once per threshold crossing, not on every run after.
            if [ "$N" = "$ALARM_AFTER" ]; then
-               alarm "source unreachable for $N runs (~$((N * 20)) min). Site keeps showing the last value."
+               alarm "source unreachable since $(cat "$SINCE_FILE") ($N runs). Site still shows $(shown_now)."
            fi
        else
            log "source unreachable ($N/$ALARM_AFTER) — staying quiet, the next run may well succeed"
@@ -148,7 +163,14 @@ case "$RC" in
        ;;
 esac
 
-rm -f "$FAILS_FILE"
+# All clear, but only if an alarm actually went out. Recovering from one or
+# two quiet failures is not news.
+PREV_FAILS=$(cat "$FAILS_FILE" 2>/dev/null || echo 0)
+if [ "$PREV_FAILS" -ge "$ALARM_AFTER" ]; then
+    alarm "back after an outage since $(cat "$SINCE_FILE" 2>/dev/null || echo '?')."
+fi
+rm -f "$FAILS_FILE" "$SINCE_FILE"
+
 [ -s data.json ] || fail "data.json is empty"
 
 # --- 2) assemble the payload ------------------------------------------------
