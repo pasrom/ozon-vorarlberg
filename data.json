@@ -2,9 +2,9 @@
   "schema": 2,
   "demo": false,
   "source": "https://www.vorarlberg-luft.at/tab1O3.htm",
-  "source_time": "2026-08-17T11:00+02:00",
-  "source_time_raw": "17.08.2026 11:00",
-  "fetched_utc": "2026-08-17T09:27:07+00:00",
+  "source_time": "2026-08-17T12:00+02:00",
+  "source_time_raw": "17.08.2026 12:00",
+  "fetched_utc": "2026-08-17T10:27:03+00:00",
   "timezone": "Europe/Vienna",
   "thresholds": {
     "who_short_8h": 100,
@@ -39,11 +39,11 @@
     }
   ],
   "summary": {
-    "overall_training_status": "warning",
+    "overall_training_status": "good",
     "cleanest": "Wald a. Arlberg",
-    "cleanest_value": 71,
-    "worst": "Sulzberg",
-    "worst_value": 110,
+    "cleanest_value": 73,
+    "worst": "Lustenau",
+    "worst_value": 85,
     "any_info_threshold": false,
     "eu_target_exceeded_at": [
       "Lustenau",
@@ -61,7 +61,7 @@
       "altitude_m_approx": 404,
       "kind": "tal",
       "region": "Rheintal",
-      "akt_1h": 75,
+      "akt_1h": 85,
       "max_1h": 127,
       "max_8h": 125,
       "prev_max_1h": 163,
@@ -79,7 +79,7 @@
       },
       "trend": {
         "dir": "up",
-        "delta": 7.0,
+        "delta": 10.0,
         "arrow": "▲"
       },
       "exceeds_eu_target": true,
@@ -127,7 +127,7 @@
       "altitude_m_approx": 900,
       "kind": "tal",
       "region": "Klostertal",
-      "akt_1h": 71,
+      "akt_1h": 73,
       "max_1h": 83,
       "max_8h": 99,
       "prev_max_1h": 151,
@@ -145,7 +145,7 @@
       },
       "trend": {
         "dir": "flat",
-        "delta": -1.0,
+        "delta": 2.0,
         "arrow": "▬"
       },
       "exceeds_eu_target": false,
@@ -160,15 +160,15 @@
       "altitude_m_approx": 1015,
       "kind": "hoehe",
       "region": "Bregenzerwald",
-      "akt_1h": 110,
+      "akt_1h": null,
       "max_1h": 139,
       "max_8h": 146,
       "prev_max_1h": 156,
       "prev_max_8h": 151,
       "training": {
-        "status": "warning",
-        "word": "ok",
-        "advice": "Short sessions are fine, shorten long hard blocks."
+        "status": "unknown",
+        "word": "no data",
+        "advice": "Station is not reporting a value right now."
       },
       "day": {
         "status": "serious",
@@ -187,7 +187,6 @@
   ],
   "history": {
     "t": [
-      "2026-08-14T11:00+02:00",
       "2026-08-14T12:00+02:00",
       "2026-08-14T13:00+02:00",
       "2026-08-14T14:00+02:00",
@@ -257,11 +256,11 @@
       "2026-08-17T08:00+02:00",
       "2026-08-17T09:00+02:00",
       "2026-08-17T10:00+02:00",
-      "2026-08-17T11:00+02:00"
+      "2026-08-17T11:00+02:00",
+      "2026-08-17T12:00+02:00"
     ],
     "akt_1h": {
       "ATVA002": [
-        96.8,
         113.0,
         129.8,
         147.5,
@@ -331,10 +330,10 @@
         91.0,
         84.0,
         68.0,
-        75.0
+        75.0,
+        85.0
       ],
       "ATVA007": [
-        97.1,
         108.0,
         119.7,
         133.5,
@@ -404,10 +403,10 @@
         54.0,
         null,
         null,
+        null,
         null
       ],
       "ATVA009": [
-        77.5,
         100.6,
         126.2,
         125.0,
@@ -477,10 +476,10 @@
         49.0,
         50.0,
         72.0,
-        71.0
+        71.0,
+        73.0
       ],
       "ATVA008": [
-        117.0,
         117.8,
         132.5,
         143.8,
@@ -550,12 +549,12 @@
         135.0,
         119.0,
         111.0,
-        110.0
+        110.0,
+        null
       ]
     },
     "max_8h": {
       "ATVA002": [
-        null,
         null,
         null,
         null,
@@ -625,10 +624,10 @@
         125,
         125,
         125,
+        125,
         125
       ],
       "ATVA007": [
-        null,
         null,
         null,
         null,
@@ -698,10 +697,10 @@
         129,
         129,
         129,
+        129,
         129
       ],
       "ATVA009": [
-        null,
         null,
         null,
         null,
@@ -771,10 +770,10 @@
         99,
         99,
         99,
+        99,
         99
       ],
       "ATVA008": [
-        null,
         null,
         null,
         null,
@@ -844,14 +843,15 @@
         146,
         146,
         146,
+        146,
         146
       ]
     },
     "points": 71,
     "span_hours": 72,
     "sources": {
-      "archive": 228,
-      "log": 41,
+      "archive": 224,
+      "log": 43,
       "archive_until": "2026-08-16T21:00+02:00"
     }
   },
@@ -872,7 +872,7 @@
         77.5,
         82.0,
         93.0,
-        111.0,
+        98.0,
         130.0,
         144.5,
         154.5,
@@ -924,7 +924,7 @@
         62.5,
         70.0,
         73.0,
-        105.0,
+        89.0,
         122.0,
         135.0,
         141.0,
