@@ -2,9 +2,9 @@
   "schema": 2,
   "demo": false,
   "source": "https://www.vorarlberg-luft.at/tab1O3.htm",
-  "source_time": "2026-08-23T16:00+02:00",
-  "source_time_raw": "23.08.2026 16:00",
-  "fetched_utc": "2026-08-23T14:27:01+00:00",
+  "source_time": "2026-08-23T17:00+02:00",
+  "source_time_raw": "23.08.2026 17:00",
+  "fetched_utc": "2026-08-23T15:27:04+00:00",
   "timezone": "Europe/Vienna",
   "thresholds": {
     "who_short_8h": 100,
@@ -39,11 +39,11 @@
     }
   ],
   "summary": {
-    "overall_training_status": "good",
+    "overall_training_status": "warning",
     "cleanest": "Wald a. Arlberg",
-    "cleanest_value": 82,
+    "cleanest_value": 86,
     "worst": "Lustenau",
-    "worst_value": 95,
+    "worst_value": 100,
     "any_info_threshold": false,
     "eu_target_exceeded_at": []
   },
@@ -57,25 +57,25 @@
       "altitude_m_approx": 404,
       "kind": "tal",
       "region": "Rheintal",
-      "akt_1h": 95,
-      "max_1h": 100,
-      "max_8h": 64,
+      "akt_1h": 100,
+      "max_1h": 102,
+      "max_8h": 71,
       "prev_max_1h": 95,
       "prev_max_8h": 86,
       "training": {
-        "status": "good",
-        "word": "free",
-        "advice": "Full session possible, intervals included."
+        "status": "warning",
+        "word": "ok",
+        "advice": "Short sessions are fine, shorten long hard blocks."
       },
       "day": {
         "status": "good",
         "label": "below WHO guideline",
-        "vs_who": -36,
-        "vs_eu": -56
+        "vs_who": -29,
+        "vs_eu": -49
       },
       "trend": {
         "dir": "up",
-        "delta": 8.0,
+        "delta": 5.0,
         "arrow": "▲"
       },
       "exceeds_eu_target": false,
@@ -90,9 +90,9 @@
       "altitude_m_approx": 570,
       "kind": "tal",
       "region": "Walgau",
-      "akt_1h": 86,
-      "max_1h": 92,
-      "max_8h": 57,
+      "akt_1h": 92,
+      "max_1h": 96,
+      "max_8h": 66,
       "prev_max_1h": 84,
       "prev_max_8h": 77,
       "training": {
@@ -103,13 +103,13 @@
       "day": {
         "status": "good",
         "label": "below WHO guideline",
-        "vs_who": -43,
-        "vs_eu": -63
+        "vs_who": -34,
+        "vs_eu": -54
       },
       "trend": {
-        "dir": "flat",
-        "delta": 1.0,
-        "arrow": "▬"
+        "dir": "up",
+        "delta": 6.0,
+        "arrow": "▲"
       },
       "exceeds_eu_target": false,
       "exceeds_at_info": false
@@ -123,9 +123,9 @@
       "altitude_m_approx": 900,
       "kind": "tal",
       "region": "Klostertal",
-      "akt_1h": 82,
-      "max_1h": 86,
-      "max_8h": 57,
+      "akt_1h": 86,
+      "max_1h": 89,
+      "max_8h": 65,
       "prev_max_1h": 80,
       "prev_max_8h": 72,
       "training": {
@@ -136,13 +136,13 @@
       "day": {
         "status": "good",
         "label": "below WHO guideline",
-        "vs_who": -43,
-        "vs_eu": -63
+        "vs_who": -35,
+        "vs_eu": -55
       },
       "trend": {
-        "dir": "up",
-        "delta": 5.0,
-        "arrow": "▲"
+        "dir": "flat",
+        "delta": 4.0,
+        "arrow": "▬"
       },
       "exceeds_eu_target": false,
       "exceeds_at_info": false
@@ -156,8 +156,8 @@
       "altitude_m_approx": 1015,
       "kind": "hoehe",
       "region": "Bregenzerwald",
-      "akt_1h": 94,
-      "max_1h": 97,
+      "akt_1h": 97,
+      "max_1h": 98,
       "max_8h": 91,
       "prev_max_1h": 97,
       "prev_max_8h": 91,
@@ -174,7 +174,7 @@
       },
       "trend": {
         "dir": "flat",
-        "delta": 1.0,
+        "delta": 3.0,
         "arrow": "▬"
       },
       "exceeds_eu_target": false,
@@ -183,7 +183,6 @@
   ],
   "history": {
     "t": [
-      "2026-08-20T16:00+02:00",
       "2026-08-20T17:00+02:00",
       "2026-08-20T18:00+02:00",
       "2026-08-20T19:00+02:00",
@@ -253,11 +252,11 @@
       "2026-08-23T13:00+02:00",
       "2026-08-23T14:00+02:00",
       "2026-08-23T15:00+02:00",
-      "2026-08-23T16:00+02:00"
+      "2026-08-23T16:00+02:00",
+      "2026-08-23T17:00+02:00"
     ],
     "akt_1h": {
       "ATVA002": [
-        null,
         97.3,
         87.8,
         89.6,
@@ -327,10 +326,10 @@
         68.0,
         77.0,
         87.0,
-        95.0
+        95.0,
+        100.0
       ],
       "ATVA007": [
-        65.5,
         78.5,
         81.7,
         77.3,
@@ -400,10 +399,10 @@
         66.0,
         77.0,
         85.0,
-        86.0
+        86.0,
+        92.0
       ],
       "ATVA009": [
-        64.7,
         60.4,
         58.3,
         53.5,
@@ -473,10 +472,10 @@
         64.0,
         71.0,
         77.0,
-        82.0
+        82.0,
+        86.0
       ],
       "ATVA008": [
-        84.6,
         89.2,
         81.1,
         81.8,
@@ -546,12 +545,12 @@
         77.0,
         91.0,
         93.0,
-        94.0
+        94.0,
+        97.0
       ]
     },
     "max_8h": {
       "ATVA002": [
-        113,
         113,
         113,
         113,
@@ -621,10 +620,10 @@
         64,
         64,
         64,
-        64
+        64,
+        71
       ],
       "ATVA007": [
-        89,
         89,
         89,
         89,
@@ -694,10 +693,10 @@
         53,
         53,
         53,
-        57
+        57,
+        66
       ],
       "ATVA009": [
-        80,
         80,
         80,
         80,
@@ -767,10 +766,10 @@
         51,
         51,
         51,
-        57
+        57,
+        65
       ],
       "ATVA008": [
-        121,
         121,
         121,
         121,
@@ -840,14 +839,15 @@
         91,
         91,
         91,
+        91,
         91
       ]
     },
     "points": 71,
     "span_hours": 72,
     "sources": {
-      "archive": 207,
-      "log": 64,
+      "archive": 204,
+      "log": 68,
       "archive_until": "2026-08-22T21:00+02:00"
     }
   },
@@ -872,8 +872,8 @@
         64.5,
         72.0,
         82.0,
-        92.0,
-        90.5,
+        89.0,
+        97.0,
         88.5,
         90.0,
         89.0,
@@ -898,8 +898,8 @@
         48.0,
         62.5,
         77.0,
-        85.0,
-        82.5,
+        84.0,
+        84.0,
         84.5,
         85.0,
         80.5,
@@ -924,8 +924,8 @@
         55.0,
         63.5,
         71.0,
-        82.0,
-        80.0,
+        76.5,
+        83.0,
         79.0,
         83.0,
         85.0,
@@ -950,8 +950,8 @@
         78.5,
         85.0,
         85.5,
+        89.5,
         94.0,
-        91.5,
         89.0,
         92.0,
         92.5,
@@ -1669,8 +1669,8 @@
           "median": 102,
           "p90": 154,
           "max": 204,
-          "today_max_1h": 100,
-          "percentile": 47,
+          "today_max_1h": 102,
+          "percentile": 50,
           "today_from": "live"
         }
       },
@@ -2094,8 +2094,8 @@
           "median": 93,
           "p90": 133,
           "max": 165,
-          "today_max_1h": 92,
-          "percentile": 46,
+          "today_max_1h": 96,
+          "percentile": 55,
           "today_from": "live"
         }
       },
@@ -2532,8 +2532,8 @@
           "median": 90,
           "p90": 123,
           "max": 158,
-          "today_max_1h": 86,
-          "percentile": 41,
+          "today_max_1h": 89,
+          "percentile": 46,
           "today_from": "live"
         }
       },
@@ -3152,8 +3152,8 @@
           "median": 112,
           "p90": 155,
           "max": 200,
-          "today_max_1h": 97,
-          "percentile": 26,
+          "today_max_1h": 98,
+          "percentile": 27,
           "today_from": "live"
         }
       }
