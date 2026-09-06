@@ -2,9 +2,9 @@
   "schema": 2,
   "demo": false,
   "source": "https://www.vorarlberg-luft.at/tab1O3.htm",
-  "source_time": "2026-09-06T07:00+02:00",
-  "source_time_raw": "06.09.2026 07:00",
-  "fetched_utc": "2026-09-06T05:27:00+00:00",
+  "source_time": "2026-09-06T08:00+02:00",
+  "source_time_raw": "06.09.2026 08:00",
+  "fetched_utc": "2026-09-06T06:27:01+00:00",
   "timezone": "Europe/Vienna",
   "thresholds": {
     "who_short_8h": 100,
@@ -41,7 +41,7 @@
   "summary": {
     "overall_training_status": "good",
     "cleanest": "Lustenau",
-    "cleanest_value": 4,
+    "cleanest_value": 3,
     "worst": "Sulzberg",
     "worst_value": 67,
     "any_info_threshold": false,
@@ -57,7 +57,7 @@
       "altitude_m_approx": 404,
       "kind": "tal",
       "region": "Rheintal",
-      "akt_1h": 4,
+      "akt_1h": 3,
       "max_1h": 19,
       "max_8h": 43,
       "prev_max_1h": 68,
@@ -75,7 +75,7 @@
       },
       "trend": {
         "dir": "flat",
-        "delta": 1.0,
+        "delta": -1.0,
         "arrow": "▬"
       },
       "exceeds_eu_target": false,
@@ -90,7 +90,7 @@
       "altitude_m_approx": 570,
       "kind": "tal",
       "region": "Walgau",
-      "akt_1h": 15,
+      "akt_1h": 12,
       "max_1h": 29,
       "max_8h": 48,
       "prev_max_1h": 89,
@@ -108,7 +108,7 @@
       },
       "trend": {
         "dir": "flat",
-        "delta": -1.0,
+        "delta": -3.0,
         "arrow": "▬"
       },
       "exceeds_eu_target": false,
@@ -123,15 +123,15 @@
       "altitude_m_approx": 900,
       "kind": "tal",
       "region": "Klostertal",
-      "akt_1h": null,
+      "akt_1h": 22,
       "max_1h": 25,
       "max_8h": 42,
       "prev_max_1h": 86,
       "prev_max_8h": 75,
       "training": {
-        "status": "unknown",
-        "word": "no data",
-        "advice": "Station is not reporting a value right now."
+        "status": "good",
+        "word": "free",
+        "advice": "Full session possible, intervals included."
       },
       "day": {
         "status": "good",
@@ -141,7 +141,7 @@
       },
       "trend": {
         "dir": "flat",
-        "delta": 2.0,
+        "delta": -3.0,
         "arrow": "▬"
       },
       "exceeds_eu_target": false,
@@ -174,7 +174,7 @@
       },
       "trend": {
         "dir": "flat",
-        "delta": -1.0,
+        "delta": 0.0,
         "arrow": "▬"
       },
       "exceeds_eu_target": false,
@@ -183,7 +183,6 @@
   ],
   "history": {
     "t": [
-      "2026-09-03T07:00+02:00",
       "2026-09-03T08:00+02:00",
       "2026-09-03T09:00+02:00",
       "2026-09-03T10:00+02:00",
@@ -253,11 +252,11 @@
       "2026-09-06T04:00+02:00",
       "2026-09-06T05:00+02:00",
       "2026-09-06T06:00+02:00",
-      "2026-09-06T07:00+02:00"
+      "2026-09-06T07:00+02:00",
+      "2026-09-06T08:00+02:00"
     ],
     "akt_1h": {
       "ATVA002": [
-        55.3,
         39.2,
         33.5,
         46.1,
@@ -327,10 +326,10 @@
         13.0,
         null,
         3.0,
-        4.0
+        4.0,
+        3.0
       ],
       "ATVA007": [
-        39.6,
         35.0,
         27.7,
         31.5,
@@ -400,10 +399,10 @@
         20.0,
         17.0,
         16.0,
-        15.0
+        15.0,
+        12.0
       ],
       "ATVA009": [
-        34.5,
         24.6,
         26.1,
         30.3,
@@ -473,10 +472,10 @@
         22.0,
         23.0,
         25.0,
-        null
+        null,
+        22.0
       ],
       "ATVA008": [
-        98.0,
         93.7,
         95.5,
         91.6,
@@ -546,12 +545,12 @@
         null,
         68.0,
         68.0,
+        67.0,
         67.0
       ]
     },
     "max_8h": {
       "ATVA002": [
-        77,
         77,
         77,
         77,
@@ -621,10 +620,10 @@
         43,
         43,
         43,
+        43,
         43
       ],
       "ATVA007": [
-        79,
         79,
         79,
         79,
@@ -694,10 +693,10 @@
         48,
         48,
         48,
+        48,
         48
       ],
       "ATVA009": [
-        64,
         64,
         64,
         64,
@@ -767,10 +766,10 @@
         42,
         42,
         42,
+        42,
         42
       ],
       "ATVA008": [
-        114,
         114,
         114,
         114,
@@ -840,14 +839,15 @@
         67,
         67,
         67,
+        67,
         67
       ]
     },
     "points": 71,
     "span_hours": 72,
     "sources": {
-      "archive": 244,
-      "log": 28,
+      "archive": 240,
+      "log": 32,
       "archive_until": "2026-09-05T21:00+02:00"
     }
   },
@@ -863,7 +863,7 @@
         62.0,
         60.0,
         52.0,
-        29.0,
+        37.0,
         39.0,
         34.0,
         48.0,
@@ -889,8 +889,8 @@
         40.5,
         39.0,
         40.0,
-        35.5,
-        37.5,
+        40.0,
+        35.0,
         29.0,
         30.5,
         47.5,
@@ -916,7 +916,7 @@
         43.0,
         45.0,
         44.0,
-        28.0,
+        25.0,
         25.5,
         32.5,
         43.5,
@@ -941,8 +941,8 @@
         99.0,
         87.0,
         88.0,
-        96.5,
-        92.0,
+        98.0,
+        90.0,
         90.5,
         85.5,
         84.5,
@@ -961,8 +961,8 @@
       ]
     },
     "best_window": {
-      "from_hour": 7,
-      "to_hour": 10,
+      "from_hour": 8,
+      "to_hour": 11,
       "mean": 36
     }
   },
