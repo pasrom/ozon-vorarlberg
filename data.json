@@ -2,9 +2,9 @@
   "schema": 2,
   "demo": false,
   "source": "https://www.vorarlberg-luft.at/tab1O3.htm",
-  "source_time": "2026-10-31T09:00+01:00",
-  "source_time_raw": "31.10.2026 09:00",
-  "fetched_utc": "2026-10-31T08:27:06+00:00",
+  "source_time": "2026-10-31T10:00+01:00",
+  "source_time_raw": "31.10.2026 10:00",
+  "fetched_utc": "2026-10-31T09:27:03+00:00",
   "timezone": "Europe/Vienna",
   "thresholds": {
     "who_short_8h": 100,
@@ -41,9 +41,9 @@
   "summary": {
     "overall_training_status": "good",
     "cleanest": "Bludenz",
-    "cleanest_value": 1,
+    "cleanest_value": 6,
     "worst": "Sulzberg",
-    "worst_value": 35,
+    "worst_value": 33,
     "any_info_threshold": false,
     "eu_target_exceeded_at": []
   },
@@ -57,7 +57,7 @@
       "altitude_m_approx": 404,
       "kind": "tal",
       "region": "Rheintal",
-      "akt_1h": 12,
+      "akt_1h": 11,
       "max_1h": 26,
       "max_8h": 23,
       "prev_max_1h": 43,
@@ -75,7 +75,7 @@
       },
       "trend": {
         "dir": "flat",
-        "delta": -3.0,
+        "delta": -1.0,
         "arrow": "▬"
       },
       "exceeds_eu_target": false,
@@ -90,8 +90,8 @@
       "altitude_m_approx": 570,
       "kind": "tal",
       "region": "Walgau",
-      "akt_1h": 1,
-      "max_1h": 10,
+      "akt_1h": 6,
+      "max_1h": 17,
       "max_8h": 16,
       "prev_max_1h": 38,
       "prev_max_8h": 32,
@@ -107,9 +107,9 @@
         "vs_eu": -104
       },
       "trend": {
-        "dir": "flat",
-        "delta": -1.0,
-        "arrow": "▬"
+        "dir": "up",
+        "delta": 5.0,
+        "arrow": "▲"
       },
       "exceeds_eu_target": false,
       "exceeds_at_info": false
@@ -141,7 +141,7 @@
       },
       "trend": {
         "dir": "flat",
-        "delta": -1.0,
+        "delta": 0.0,
         "arrow": "▬"
       },
       "exceeds_eu_target": false,
@@ -156,7 +156,7 @@
       "altitude_m_approx": 1015,
       "kind": "hoehe",
       "region": "Bregenzerwald",
-      "akt_1h": 35,
+      "akt_1h": 33,
       "max_1h": 44,
       "max_8h": 45,
       "prev_max_1h": 53,
@@ -174,7 +174,7 @@
       },
       "trend": {
         "dir": "flat",
-        "delta": 0.0,
+        "delta": -2.0,
         "arrow": "▬"
       },
       "exceeds_eu_target": false,
@@ -183,7 +183,6 @@
   ],
   "history": {
     "t": [
-      "2026-10-28T09:00+01:00",
       "2026-10-28T10:00+01:00",
       "2026-10-28T11:00+01:00",
       "2026-10-28T12:00+01:00",
@@ -254,11 +253,11 @@
       "2026-10-31T06:00+01:00",
       "2026-10-31T07:00+01:00",
       "2026-10-31T08:00+01:00",
-      "2026-10-31T09:00+01:00"
+      "2026-10-31T09:00+01:00",
+      "2026-10-31T10:00+01:00"
     ],
     "akt_1h": {
       "ATVA002": [
-        2.6,
         1.0,
         9.5,
         29.6,
@@ -329,10 +328,10 @@
         null,
         22.0,
         15.0,
-        12.0
+        12.0,
+        11.0
       ],
       "ATVA007": [
-        9.3,
         7.9,
         5.6,
         10.1,
@@ -403,10 +402,10 @@
         3.0,
         2.0,
         2.0,
-        1.0
+        1.0,
+        6.0
       ],
       "ATVA009": [
-        7.2,
         6.6,
         16.0,
         34.6,
@@ -477,10 +476,10 @@
         13.0,
         12.0,
         10.0,
+        9.0,
         9.0
       ],
       "ATVA008": [
-        56.8,
         51.5,
         40.6,
         44.1,
@@ -551,12 +550,12 @@
         null,
         36.0,
         35.0,
-        35.0
+        35.0,
+        33.0
       ]
     },
     "max_8h": {
       "ATVA002": [
-        12,
         12,
         12,
         12,
@@ -627,10 +626,10 @@
         22,
         23,
         23,
+        23,
         23
       ],
       "ATVA007": [
-        4,
         4,
         4,
         5,
@@ -701,10 +700,10 @@
         16,
         16,
         16,
+        16,
         16
       ],
       "ATVA009": [
-        28,
         28,
         28,
         28,
@@ -775,6 +774,7 @@
         13,
         13,
         13,
+        13,
         13
       ],
       "ATVA008": [
@@ -792,7 +792,6 @@
         70,
         70,
         70,
-        70,
         null,
         71,
         71,
@@ -841,6 +840,7 @@
         54,
         54,
         54,
+        45,
         45,
         45,
         45,
@@ -855,8 +855,8 @@
     "points": 72,
     "span_hours": 72,
     "sources": {
-      "archive": 236,
-      "log": 40,
+      "archive": 232,
+      "log": 44,
       "archive_until": "2026-10-30T21:00+01:00"
     }
   },
@@ -874,8 +874,8 @@
         9.0,
         12.5,
         9.5,
-        4.5,
-        5.0,
+        3.0,
+        8.0,
         13.0,
         30.0,
         38.0,
@@ -900,8 +900,8 @@
         3.0,
         3.0,
         2.0,
-        5.5,
-        8.0,
+        2.0,
+        7.0,
         13.0,
         25.0,
         33.0,
@@ -926,7 +926,7 @@
         15.0,
         12.5,
         10.0,
-        8.0,
+        7.0,
         9.0,
         16.0,
         30.0,
@@ -952,8 +952,8 @@
         50.0,
         44.0,
         38.0,
-        47.0,
-        51.0,
+        37.0,
+        44.0,
         41.0,
         44.0,
         56.0,
@@ -2103,8 +2103,8 @@
           "median": 49,
           "p90": 81,
           "max": 95,
-          "today_max_1h": 10,
-          "percentile": 2,
+          "today_max_1h": 17,
+          "percentile": 6,
           "today_from": "live"
         }
       },
