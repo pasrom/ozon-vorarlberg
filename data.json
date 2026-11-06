@@ -2,9 +2,9 @@
   "schema": 2,
   "demo": false,
   "source": "https://www.vorarlberg-luft.at/tab1O3.htm",
-  "source_time": "2026-11-06T12:00+01:00",
-  "source_time_raw": "06.11.2026 12:00",
-  "fetched_utc": "2026-11-06T11:27:05+00:00",
+  "source_time": "2026-11-06T13:00+01:00",
+  "source_time_raw": "06.11.2026 13:00",
+  "fetched_utc": "2026-11-06T12:27:03+00:00",
   "timezone": "Europe/Vienna",
   "thresholds": {
     "who_short_8h": 100,
@@ -43,7 +43,7 @@
     "cleanest": "Bludenz",
     "cleanest_value": 10,
     "worst": "Sulzberg",
-    "worst_value": 60,
+    "worst_value": 59,
     "any_info_threshold": false,
     "eu_target_exceeded_at": []
   },
@@ -57,7 +57,7 @@
       "altitude_m_approx": 404,
       "kind": "tal",
       "region": "Rheintal",
-      "akt_1h": 20,
+      "akt_1h": 21,
       "max_1h": 21,
       "max_8h": 12,
       "prev_max_1h": 27,
@@ -75,7 +75,7 @@
       },
       "trend": {
         "dir": "flat",
-        "delta": 2.0,
+        "delta": 1.0,
         "arrow": "▬"
       },
       "exceeds_eu_target": false,
@@ -92,7 +92,7 @@
       "region": "Walgau",
       "akt_1h": 10,
       "max_1h": 11,
-      "max_8h": 6,
+      "max_8h": 7,
       "prev_max_1h": 16,
       "prev_max_8h": 11,
       "training": {
@@ -103,12 +103,12 @@
       "day": {
         "status": "good",
         "label": "below WHO guideline",
-        "vs_who": -94,
-        "vs_eu": -114
+        "vs_who": -93,
+        "vs_eu": -113
       },
       "trend": {
         "dir": "flat",
-        "delta": -1.0,
+        "delta": 0.0,
         "arrow": "▬"
       },
       "exceeds_eu_target": false,
@@ -123,8 +123,8 @@
       "altitude_m_approx": 900,
       "kind": "tal",
       "region": "Klostertal",
-      "akt_1h": 14,
-      "max_1h": 25,
+      "akt_1h": 17,
+      "max_1h": 39,
       "max_8h": 16,
       "prev_max_1h": 46,
       "prev_max_8h": 42,
@@ -141,7 +141,7 @@
       },
       "trend": {
         "dir": "flat",
-        "delta": 1.0,
+        "delta": 3.0,
         "arrow": "▬"
       },
       "exceeds_eu_target": false,
@@ -156,9 +156,9 @@
       "altitude_m_approx": 1015,
       "kind": "hoehe",
       "region": "Bregenzerwald",
-      "akt_1h": 60,
+      "akt_1h": 59,
       "max_1h": 60,
-      "max_8h": 35,
+      "max_8h": 40,
       "prev_max_1h": 73,
       "prev_max_8h": 65,
       "training": {
@@ -169,13 +169,13 @@
       "day": {
         "status": "good",
         "label": "below WHO guideline",
-        "vs_who": -65,
-        "vs_eu": -85
+        "vs_who": -60,
+        "vs_eu": -80
       },
       "trend": {
-        "dir": "up",
-        "delta": 9.0,
-        "arrow": "▲"
+        "dir": "flat",
+        "delta": -1.0,
+        "arrow": "▬"
       },
       "exceeds_eu_target": false,
       "exceeds_at_info": false
@@ -183,7 +183,6 @@
   ],
   "history": {
     "t": [
-      "2026-11-03T12:00+01:00",
       "2026-11-03T13:00+01:00",
       "2026-11-03T14:00+01:00",
       "2026-11-03T15:00+01:00",
@@ -253,11 +252,11 @@
       "2026-11-06T09:00+01:00",
       "2026-11-06T10:00+01:00",
       "2026-11-06T11:00+01:00",
-      "2026-11-06T12:00+01:00"
+      "2026-11-06T12:00+01:00",
+      "2026-11-06T13:00+01:00"
     ],
     "akt_1h": {
       "ATVA002": [
-        25.8,
         28.7,
         28.6,
         28.1,
@@ -327,10 +326,10 @@
         7.0,
         15.0,
         18.0,
-        20.0
+        20.0,
+        21.0
       ],
       "ATVA007": [
-        18.7,
         28.4,
         31.9,
         28.7,
@@ -400,10 +399,10 @@
         5.0,
         8.0,
         11.0,
+        10.0,
         10.0
       ],
       "ATVA009": [
-        20.3,
         35.0,
         33.0,
         31.2,
@@ -473,10 +472,10 @@
         3.0,
         8.0,
         13.0,
-        14.0
+        14.0,
+        17.0
       ],
       "ATVA008": [
-        32.2,
         30.9,
         31.3,
         30.8,
@@ -546,12 +545,12 @@
         45.0,
         50.0,
         51.0,
-        60.0
+        60.0,
+        59.0
       ]
     },
     "max_8h": {
       "ATVA002": [
-        33,
         33,
         33,
         33,
@@ -621,10 +620,10 @@
         12,
         12,
         12,
+        12,
         12
       ],
       "ATVA007": [
-        23,
         23,
         23,
         23,
@@ -694,10 +693,10 @@
         3,
         4,
         5,
-        6
+        6,
+        7
       ],
       "ATVA009": [
-        28,
         28,
         28,
         28,
@@ -767,10 +766,10 @@
         16,
         16,
         16,
+        16,
         16
       ],
       "ATVA008": [
-        43,
         43,
         43,
         43,
@@ -840,14 +839,15 @@
         20,
         26,
         31,
-        35
+        35,
+        40
       ]
     },
     "points": 71,
     "span_hours": 72,
     "sources": {
-      "archive": 222,
-      "log": 48,
+      "archive": 218,
+      "log": 52,
       "archive_until": "2026-11-05T21:00+01:00"
     }
   },
@@ -868,8 +868,8 @@
         5.5,
         9.5,
         15.0,
-        21.0,
-        29.0,
+        20.5,
+        26.0,
         28.5,
         29.5,
         29.0,
@@ -894,8 +894,8 @@
         1.5,
         3.5,
         9.0,
-        12.0,
-        20.5,
+        11.0,
+        13.0,
         24.5,
         24.5,
         25.5,
@@ -920,8 +920,8 @@
         4.0,
         7.0,
         10.0,
-        18.0,
-        32.0,
+        17.0,
+        29.0,
         36.0,
         34.5,
         36.0,
@@ -946,8 +946,8 @@
         38.0,
         41.0,
         41.5,
-        40.0,
-        30.0,
+        38.5,
+        31.0,
         30.5,
         30.0,
         32.0,
@@ -2532,8 +2532,8 @@
           "median": 49,
           "p90": 71,
           "max": 96,
-          "today_max_1h": 25,
-          "percentile": 7,
+          "today_max_1h": 39,
+          "percentile": 28,
           "today_from": "live"
         }
       },
