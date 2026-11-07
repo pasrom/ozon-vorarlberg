@@ -5,7 +5,7 @@
 # Runs as LaunchDaemon io.ebs.agent.ozon under the `agent` user, three times
 # per hour:
 #   1. fetch live readings, build data.json, prune the log to 4 days
-#   2. rewrite the `data` branch as a single commit and force-push it
+#   2. commit a new reading to the `data` branch and push it
 #
 # Branch layout (same shape as the wastewater project):
 #
@@ -195,11 +195,30 @@ case "$REMOTE" in
         ;;
 esac
 
+# Probe the remote before cloning. A failed clone used to be taken to mean
+# "branch does not exist yet", so a rejected key showed up in the log as
+# "creating it" and ended in an alarm that guessed at write access. That is
+# what happened when the deploy key had vanished from GitHub: every git call
+# said "Permission denied (publickey)", the alarm said something else.
+# ls-remote separates the cases: it fails when GitHub is unreachable or the
+# key is refused, and succeeds with empty output when only the branch is new.
+PROBE_ERR="$STATE_DIR/ls-remote.err"
+if ! HEADS=$(git ls-remote --heads "$REMOTE" "refs/heads/$BRANCH" 2>"$PROBE_ERR"); then
+    cat "$PROBE_ERR" >>"$LOG"
+    if grep -q "Permission denied (publickey)" "$PROBE_ERR"; then
+        fail "GitHub refuses the deploy key $KEY — no longer registered on the repo? (see $LOG)"
+    fi
+    # The first line names the cause (DNS, timeout, …); git's closing lines are boilerplate.
+    fail "GitHub not reachable: $(grep -v '^Warning' "$PROBE_ERR" | head -n 1) (see $LOG)"
+fi
+
 # Shallow clone: the history grows by design, and a full fetch would get
 # slower every day for no benefit. --depth 1 keeps every run equally cheap.
 TMP=$(mktemp -d)
-if ! git clone -q --depth 1 --branch "$BRANCH" "$REMOTE" "$TMP" 2>>"$LOG"; then
-    # Branch does not exist yet: start it.
+if [ -n "$HEADS" ]; then
+    git clone -q --depth 1 --branch "$BRANCH" "$REMOTE" "$TMP" 2>>"$LOG" \
+        || fail "clone of $BRANCH failed although the branch exists (see $LOG)"
+else
     log "branch $BRANCH not found, creating it"
     git -C "$TMP" init -q
     git -C "$TMP" remote add origin "$REMOTE"
